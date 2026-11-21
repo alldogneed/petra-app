@@ -84,7 +84,7 @@ describe("conversation guards (23a + 23b)", () => {
 
   it("the prompt carries the three rules", () => {
     expect(ALLDOG_BOT_PROMPT).toContain("לא שואלים שם משפחה");
-    expect(ALLDOG_BOT_PROMPT).toContain("לכל היותר פעם אחת בכל השיחה");
+    expect(ALLDOG_BOT_PROMPT).toContain("בלי מחמאות, אף פעם"); // item 44
     expect(ALLDOG_BOT_PROMPT).toContain("בודקים דקדוק ומגדר");
     expect(ALLDOG_BOT_PROMPT).toContain("urgent_reason");
   });

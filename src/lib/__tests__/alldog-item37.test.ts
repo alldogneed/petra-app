@@ -31,13 +31,11 @@ describe("Or's decisions in the prompt (26/10)", () => {
     expect(ALLDOG_BOT_PROMPT).toContain('תמיד "AllDog"');
     expect(ALLDOG_BOT_PROMPT).not.toContain("שיעור: 300–350");
   });
-  it("the sales questions (only when missing) and at most 7 questions", () => {
-    expect(ALLDOG_BOT_PROMPT).toContain("כבר עבדת עם מאלף או מעון?");
-    expect(ALLDOG_BOT_PROMPT).toContain("למה דווקא עכשיו?");
-    expect(ALLDOG_BOT_PROMPT).toContain("חשוב לך שמישהו יעשה את רוב העבודה, או שאתה מעדיף ללמוד ולתרגל בעצמך?");
-    expect(ALLDOG_BOT_PROMPT).toContain("מי עוד גר עם הכלב ומי מחליט");
-    expect(ALLDOG_BOT_PROMPT).toContain("לכל היותר 7 שאלות");
-    expect(MAX_QUESTIONS_BEFORE_CLOSE).toBe(7);
+  it("item 44 (Or, 21/11): the sales questions are left to the rep; at most 5 questions", () => {
+    expect(ALLDOG_BOT_PROMPT).toContain("לא שואלים: כמה זמן הכלב אצלם, ניסיון קודם עם מאלף");
+    expect(ALLDOG_BOT_PROMPT).not.toContain("חשוב לך שמישהו יעשה את רוב העבודה, או שאתה מעדיף");
+    expect(ALLDOG_BOT_PROMPT).toContain("לכל היותר 5 שאלות");
+    expect(MAX_QUESTIONS_BEFORE_CLOSE).toBe(5);
     expect(ALLDOG_BOT_PROMPT).toContain("בדיוק על זה עובדים בשיעור הראשון");
   });
   it("the objections and situations from the calls are in the playbook", () => {
