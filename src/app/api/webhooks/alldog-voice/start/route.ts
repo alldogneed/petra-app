@@ -3,6 +3,8 @@
  *
  * POST { conversationId, callerPhone?, externalCallId? }
  *   → { known, isCustomer, firstName, dogName, city, upcomingMeeting }
+ * Kept as the fallback tool: the caller is normally recognized before the agent speaks, by the
+ * ElevenLabs conversation-initiation webhook (../init/route.ts).
  *
  * Auth: Authorization: Bearer <ALLDOG_VOICE_AGENT_SECRET> (src/lib/alldog/voice-agent/auth.ts).
  * Off (404) unless ALLDOG_VOICE_AGENT_ENABLED + ALLDOG_BUSINESS_ID + the secret are set.
@@ -40,7 +42,9 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
 
   try {
-    const { result, timings } = await startVoiceCall(businessId, parsed.data);
+    const { result, timings, record } = await startVoiceCall(businessId, parsed.data);
+    // The call row is not needed to recognize the caller — it is written after the response.
+    await runAfterResponse(record());
     const last4 = (parsed.data.callerPhone ?? "").replace(/\D/g, "").slice(-4) || "none";
     console.log(
       `[alldog-voice start] conv=${parsed.data.conversationId} caller=…${last4} known=${result.known} ` +

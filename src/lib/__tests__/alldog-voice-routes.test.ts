@@ -98,6 +98,8 @@ import { POST as startPOST } from "@/app/api/webhooks/alldog-voice/start/route";
 import { POST as detailsPOST } from "@/app/api/webhooks/alldog-voice/details/route";
 import { POST as bookPOST } from "@/app/api/webhooks/alldog-voice/book/route";
 import { POST as endPOST } from "@/app/api/webhooks/alldog-voice/end/route";
+import { POST as initPOST } from "@/app/api/webhooks/alldog-voice/init/route";
+import { EMPTY_INIT_VARIABLES, withBudget } from "@/lib/alldog/voice-agent/init";
 import { processVoiceSummary } from "@/lib/alldog/voice-agent/summary-job";
 import { callbackDueAt, callbackDueLabel } from "@/lib/alldog/voice-agent/booking-rules";
 import { repAlertText } from "@/lib/alldog/voice-agent/rep-alert";
@@ -188,6 +190,151 @@ describe("/start — what goes back to the agent", () => {
       const json = await (await startPOST(tool("start", { conversationId: `c-${callerPhone}`, callerPhone }))).json();
       expect(json).toMatchObject({ known: false, firstName: null });
     }
+  });
+});
+
+describe("/start — the answer does not wait for the call record", () => {
+  /** Makes the call-row write hang until released, like a slow database. */
+  function holdCallWrites() {
+    const prisma = (jest.requireMock("@/lib/prisma") as { default: { voiceAgentCall: { upsert: (a: unknown) => Promise<unknown> } } }).default;
+    const real = prisma.voiceAgentCall.upsert;
+    let release = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    prisma.voiceAgentCall.upsert = async (a: unknown) => { await gate; return real(a); };
+    return { release, restore: () => { prisma.voiceAgentCall.upsert = real; } };
+  }
+
+  it("the answer comes back while the call-row write is still hanging; the row and its lead link are written after it", async () => {
+    db.leads.push({ id: "lead-x", phone: "0541110001", name: "דנה כהן", city: "כפר סבא", stage: "s1", notes: null, customerId: null });
+    const hold = holdCallWrites();
+    try {
+      const res = await startPOST(tool("start", { conversationId: "conv-1", callerPhone: "+972541110001", externalCallId: "sip-1" }));
+      expect((await res.json()).firstName).toBe("דנה");
+      expect(db.calls).toHaveLength(0); // the caller already has the answer
+      hold.release();
+      await settle();
+    } finally {
+      hold.restore();
+    }
+    expect(db.calls).toHaveLength(1);
+    expect(db.calls[0]).toMatchObject({ providerConversationId: "conv-1", callerPhoneNorm: "0541110001", externalCallId: "sip-1", leadId: "lead-x" });
+  });
+  it("a failure while recording the call never reaches the caller", async () => {
+    const prisma = (jest.requireMock("@/lib/prisma") as { default: { voiceAgentCall: { upsert: unknown } } }).default;
+    const upsert = prisma.voiceAgentCall.upsert;
+    prisma.voiceAgentCall.upsert = async () => { throw new Error("db down"); };
+    try {
+      const res = await startPOST(tool("start", { conversationId: "conv-1", callerPhone: "+972541110001" }));
+      expect(res.status).toBe(200);
+      await Promise.allSettled(pending.splice(0));
+    } finally {
+      prisma.voiceAgentCall.upsert = upsert;
+    }
+  });
+});
+
+describe("/init — the ElevenLabs conversation-initiation webhook", () => {
+  // The body exactly as the ElevenLabs docs show it (+ call_id on SIP calls).
+  const body = (o: Record<string, unknown> = {}) => ({
+    caller_id: "+972541110001", agent_id: "agent-eliran", called_number: "+97237386160", call_sid: "", conversation_id: "conv-init-1", call_id: "sip-call-1", ...o,
+  });
+  const init = (b: unknown, auth: string | null = SECRET) =>
+    new NextRequest("https://petra-app.com/api/webhooks/alldog-voice/init", {
+      method: "POST", headers: { "content-type": "application/json", ...(auth ? { authorization: auth } : {}) },
+      body: typeof b === "string" ? b : JSON.stringify(b),
+    });
+  const EMPTY = { type: "conversation_initiation_client_data", dynamic_variables: { known: false, is_customer: false, first_name: "", dog_name: "", city: "", upcoming_meeting: "" } };
+  const knownLead = () => db.leads.push({ id: "lead-x", phone: "0541110001", name: "דנה כהן", city: "כפר סבא", stage: "s1", notes: "פרטי הכלב:\nשם: רקס", customerId: null });
+
+  it("a known caller → the six variables, first name only", async () => {
+    knownLead();
+    const res = await initPOST(init(body()));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.type).toBe("conversation_initiation_client_data");
+    expect(json.dynamic_variables).toMatchObject({ known: true, is_customer: false, first_name: "דנה", city: "כפר סבא", upcoming_meeting: "" });
+    expect(Object.keys(json.dynamic_variables).sort()).toEqual(Object.keys(EMPTY_INIT_VARIABLES).sort());
+    expect(JSON.stringify(json)).not.toContain("כהן");
+  });
+  it("a new caller → every variable is still there: false / empty strings, never null", async () => {
+    const json = await (await initPOST(init(body({ caller_id: "+972549990000" })))).json();
+    expect(json).toEqual(EMPTY);
+    expect(Object.values(json.dynamic_variables).every((v) => v !== null && v !== undefined)).toBe(true);
+  });
+  it("the secret is accepted as the bare header value and as 'Bearer <secret>'", async () => {
+    knownLead();
+    for (const auth of [SECRET, `Bearer ${SECRET}`]) {
+      expect((await (await initPOST(init(body(), auth))).json()).dynamic_variables.known).toBe(true);
+    }
+  });
+  it("no secret / a wrong secret → still 200 so the call starts, but nothing about the caller, no lookup, and Or is alerted", async () => {
+    knownLead();
+    for (const auth of [null, "wrong", "Bearer wrong"]) {
+      const res = await initPOST(init(body(), auth));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual(EMPTY);
+    }
+    await settle();
+    expect(db.calls).toHaveLength(0);
+    expect(sent.failures).toHaveLength(3);
+  });
+  it("the flag off → 200 with the empty set (a 404 here could stop real calls from starting)", async () => {
+    knownLead();
+    delete process.env.ALLDOG_VOICE_AGENT_ENABLED;
+    const res = await initPOST(init(body()));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(EMPTY);
+    await settle();
+    expect(db.calls).toHaveLength(0);
+    expect(sent.failures).toHaveLength(0);
+  });
+  it("a hidden caller id, a broken body or no body → 200 with the empty set", async () => {
+    knownLead();
+    for (const b of [body({ caller_id: "anonymous" }), body({ caller_id: "" }), "not json", "[]", "null"]) {
+      const res = await initPOST(init(b));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual(EMPTY);
+    }
+  });
+  it("a call of another agent → the empty set", async () => {
+    knownLead();
+    process.env.ALLDOG_VOICE_AGENT_ID = "agent-eliran";
+    expect((await (await initPOST(init(body({ agent_id: "agent-other" })))).json())).toEqual(EMPTY);
+    expect((await (await initPOST(init(body()))).json()).dynamic_variables.known).toBe(true);
+  });
+  it("the lookup throws → 200 with the empty set, and Or is alerted", async () => {
+    const leads = jest.requireMock("@/lib/alldog/leads") as { resolveLeadForContact: unknown };
+    const real = leads.resolveLeadForContact;
+    leads.resolveLeadForContact = async () => { throw new Error("db down"); };
+    try {
+      const res = await initPOST(init(body()));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual(EMPTY);
+      await Promise.allSettled(pending.splice(0));
+      expect(sent.failures).toHaveLength(1);
+    } finally {
+      leads.resolveLeadForContact = real;
+    }
+  });
+  it("the call row is written after the response, with the SIP call id and the lead", async () => {
+    knownLead();
+    const res = await initPOST(init(body()));
+    expect((await res.json()).dynamic_variables.known).toBe(true);
+    await settle();
+    expect(db.calls).toHaveLength(1);
+    expect(db.calls[0]).toMatchObject({ providerConversationId: "conv-init-1", callerPhoneNorm: "0541110001", externalCallId: "sip-call-1", leadId: "lead-x" });
+  });
+  it("the time budget: a slow lookup gives the fallback, a fast one its value, a failing one the fallback", async () => {
+    jest.useFakeTimers();
+    try {
+      const slow = withBudget(new Promise<string>((r) => setTimeout(() => r("late"), 5000)), 2000, "fallback");
+      jest.advanceTimersByTime(2000);
+      expect(await slow).toEqual({ value: "fallback", timedOut: true });
+    } finally {
+      jest.useRealTimers();
+    }
+    expect(await withBudget(Promise.resolve("fast"), 2000, "fallback")).toEqual({ value: "fast", timedOut: false });
+    expect(await withBudget(Promise.reject(new Error("x")), 2000, "fallback")).toEqual({ value: "fallback", timedOut: false });
   });
 });
 

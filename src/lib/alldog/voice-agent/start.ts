@@ -7,8 +7,13 @@
  * name, the dog's name, the city, whether this is an existing customer and whether a call is already
  * booked — no stage, no WhatsApp summary, no history, payments or address. No slots either: Eliran
  * does not book; the rep calls back herself.
- *   round 1 (parallel): call upsert · lead lookup · customer lookup
- *   round 2 (parallel, only when a lead is known): the lead's next meeting · link the lead
+ * The caller waits on the line for this answer, so only the lookups run before it:
+ *   round 1 (parallel): lead lookup · customer lookup
+ *   round 2 (only when an active lead is known): the lead's next meeting
+ * Recording the call (the VoiceAgentCall row + its link to the lead) is NOT needed to recognize the
+ * caller — `record()` does it after the response (/details and the end-of-call webhook create the
+ * row anyway when it is missing).
+ * The same lookup serves the ElevenLabs conversation-initiation webhook (/init, init.ts).
  */
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
@@ -74,16 +79,16 @@ export async function upsertCall(businessId: string, input: VoiceStartInput, cal
   }
 }
 
-export async function startVoiceCall(
+/** Lookups only — nothing is written. `activeLeadId` is for the call row written afterwards. */
+export async function identifyCaller(
   businessId: string,
-  input: VoiceStartInput,
+  rawCallerPhone: string | null | undefined,
   now: Date = new Date()
-): Promise<{ result: VoiceStartResult; timings: VoiceStartTimings }> {
+): Promise<{ result: VoiceStartResult; activeLeadId: string | null; timings: VoiceStartTimings }> {
   const t0 = performance.now();
-  const phone = callerPhoneNormOf(input.callerPhone);
+  const phone = callerPhoneNormOf(rawCallerPhone);
 
-  const [call, leads, customers] = await Promise.all([
-    upsertCall(businessId, input, phone, now),
+  const [leads, customers] = await Promise.all([
     phone ? resolveLeadForContact(businessId, phone, now) : Promise.resolve({ active: null, previous: null }),
     phone ? findCustomersByPhone(businessId, prisma, phone) : Promise.resolve([]),
   ]);
@@ -91,21 +96,14 @@ export async function startVoiceCall(
 
   const lead = leads.active ?? leads.previous;
   const customer = customers[0] ?? null;
-  const today = israelYmd(now);
-
-  const [nextMeetings] = await Promise.all([
-    leads.active
-      ? prisma.leadMeeting.findMany({
-          where: { leadId: leads.active.id, status: "scheduled", date: { gte: new Date(`${today}T00:00:00Z`) } },
-          orderBy: [{ date: "asc" }, { startTime: "asc" }],
-          select: { date: true, startTime: true },
-          take: 5,
-        })
-      : Promise.resolve([]),
-    leads.active && !call.leadId
-      ? prisma.voiceAgentCall.updateMany({ where: { id: call.id, leadId: null }, data: { leadId: leads.active.id } })
-      : Promise.resolve(null),
-  ]);
+  const nextMeetings = leads.active
+    ? await prisma.leadMeeting.findMany({
+        where: { leadId: leads.active.id, status: "scheduled", date: { gte: new Date(`${israelYmd(now)}T00:00:00Z`) } },
+        orderBy: [{ date: "asc" }, { startTime: "asc" }],
+        select: { date: true, startTime: true },
+        take: 5,
+      })
+    : [];
   const t2 = performance.now();
 
   const upcoming = nextMeetings
@@ -121,9 +119,26 @@ export async function startVoiceCall(
     city: lead?.city?.trim() || null,
     upcomingMeeting: upcoming ? { ...upcoming, label: spokenSlotLabel(upcoming.ymd, upcoming.hhmm, now) } : null,
   };
-  const t3 = performance.now();
   return {
     result,
-    timings: { round1Ms: Math.round(t1 - t0), round2Ms: Math.round(t2 - t1), totalMs: Math.round(t3 - t0) },
+    activeLeadId: leads.active?.id ?? null,
+    timings: { round1Ms: Math.round(t1 - t0), round2Ms: Math.round(t2 - t1), totalMs: Math.round(performance.now() - t0) },
   };
+}
+
+/** The call row + its link to the active lead. Runs after the response; idempotent. */
+export async function recordCallStart(businessId: string, input: VoiceStartInput, activeLeadId: string | null, now: Date = new Date()): Promise<void> {
+  const call = await upsertCall(businessId, input, callerPhoneNormOf(input.callerPhone), now);
+  if (activeLeadId && !call.leadId) {
+    await prisma.voiceAgentCall.updateMany({ where: { id: call.id, leadId: null }, data: { leadId: activeLeadId } });
+  }
+}
+
+export async function startVoiceCall(
+  businessId: string,
+  input: VoiceStartInput,
+  now: Date = new Date()
+): Promise<{ result: VoiceStartResult; timings: VoiceStartTimings; record: () => Promise<void> }> {
+  const { result, activeLeadId, timings } = await identifyCaller(businessId, input.callerPhone, now);
+  return { result, timings, record: () => recordCallStart(businessId, input, activeLeadId, now) };
 }
