@@ -82,14 +82,16 @@ export async function GET(request: NextRequest) {
             continue;
           }
           try {
-            // Voice agent (section 6, only while active): answered by Eliran → not summarized here.
-            if (await skipPaycallSummaryForVoiceAgent(call, "sync", billsecOf(call))) {
-              answeredStats.voiceAgent++;
-              continue;
-            }
             // Already in the retry queue (the webhook saw it) → the queue owns it.
             if (await isQueued(call.ID)) {
               answeredStats.duplicate++;
+              continue;
+            }
+            // Voice agent (section 6, only while active): answered by Eliran → not summarized here.
+            // After the queue check: a call PayCall already handled must not reach the filter's safety net
+            // (it alerted the owner about old calls on the day the filter was switched on).
+            if (await skipPaycallSummaryForVoiceAgent(call, "sync", billsecOf(call))) {
+              answeredStats.voiceAgent++;
               continue;
             }
             const startedAt = new Date(call.START.replace(" ", "T") + "+03:00");
