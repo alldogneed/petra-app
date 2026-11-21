@@ -10,6 +10,8 @@ import { readEnv } from "@/lib/read-env";
 import { notifyOwnerAllDog } from "@/lib/notify-owner";
 import { isVoicePaycallFilterEnabled, voiceAgentActiveFor, voiceAgentSettings } from "@/lib/alldog/config";
 import {
+  VOICE_FALLBACK_WINDOW_AFTER_MS,
+  VOICE_FALLBACK_WINDOW_BEFORE_MS,
   VOICE_MATCH_AFTER_MS,
   VOICE_MATCH_BEFORE_MS,
   firstVoiceCheckAt,
@@ -17,6 +19,7 @@ import {
   missedCallVoiceDecision,
   normalizeIlNumber,
   paycallVoiceLogLine,
+  voiceFallbackDecision,
   type MissedCallVoiceDecision,
 } from "@/lib/alldog/voice-agent/paycall-rules";
 
@@ -50,6 +53,45 @@ interface PaycallCallLike {
   CALLEE?: string | null;
   DISPOSITION?: string | null;
   DURATION?: string | number | null;
+  START?: string | null;
+}
+
+/**
+ * Safety net (sync only, from the second sighting of a call): true = PayCall must handle this call
+ * after all, because no voice call that ENDED exists for the caller around it — the end-of-call
+ * webhook never arrived, so without this the call would leave no lead at all. Alerts Or once per call.
+ */
+async function voiceCallMissing(call: PaycallCallLike, firstSighting: boolean, now: Date): Promise<boolean> {
+  if (firstSighting) return false;
+  const businessId = readEnv("PAYCALL_BUSINESS_ID");
+  if (!businessId) return false;
+  const parsed = call.START ? Date.parse(call.START.replace(" ", "T") + "+03:00") : NaN;
+  const anchor = Number.isNaN(parsed) ? now.getTime() - VOICE_FALLBACK_WINDOW_AFTER_MS : parsed;
+  const phone = normalizeIlNumber(call.CALLERID);
+  const rows = await prisma.voiceAgentCall.findMany({
+    where: {
+      businessId,
+      callerPhoneNorm: phone || null,
+      createdAt: { gte: new Date(anchor - VOICE_FALLBACK_WINDOW_BEFORE_MS), lte: new Date(anchor + VOICE_FALLBACK_WINDOW_AFTER_MS) },
+    },
+    select: { status: true, startedAt: true, createdAt: true },
+    take: 10,
+  });
+  const decision = voiceFallbackDecision(rows.map((r) => ({ status: r.status, outcome: null, startedAt: r.startedAt ?? r.createdAt })), false, now);
+  if (decision.action === "skip") return false;
+  if (await claimOnce(`alldog-voice-fallback:${call.ID}`, 3 * DAY_SECONDS)) {
+    const last4 = phone.slice(-4) || "חסוי";
+    console.warn(`[paycall voice-agent] sync call ${call.ID}: FALLBACK to PayCall (${decision.reason}) caller=…${last4}`);
+    await notifyOwnerAllDog({
+      title: "שיחה שאלירן ענה לה לא הגיעה לפטרה",
+      lines: [
+        `שיחה ממספר שמסתיים ב-${last4} הועברה לאלירן, אבל הסיכום שלו לא התקבל בפטרה.`,
+        "כדי שהשיחה לא תיעלם, PayCall מטפל בה כרגיל: ליד, משימת מעקב וסיכום מההקלטה.",
+        "כדאי לבדוק שה-webhook של סוף שיחה ב-ElevenLabs פעיל.",
+      ],
+    }).catch((err) => console.error("[paycall voice-agent] fallback alert failed", err));
+  }
+  return true;
 }
 
 /**
@@ -69,7 +111,10 @@ export async function skipPaycallSummaryForVoiceAgent(
   const isLeg = !!number && isVoiceAgentLeg(call.CALLEE, number);
   const skip = isLeg && isVoicePaycallFilterEnabled();
   // paycall-sync re-reads 48 h every 10 minutes → its line is logged once per call.
-  if (source === "sync" && !(await claimOnce(`alldog-voice-sync-log:${call.ID}`, 3 * DAY_SECONDS))) return skip;
+  if (source === "sync" && !(await claimOnce(`alldog-voice-sync-log:${call.ID}`, 3 * DAY_SECONDS))) {
+    // Second sighting onwards (≥ one sync interval after the first): is the call really with Eliran?
+    return skip && !(await voiceCallMissing(call, false, new Date()));
+  }
   console.log(paycallVoiceLogLine({
     source, callId: call.ID, disposition: call.DISPOSITION, callee: call.CALLEE, agentNumber: number,
     duration: call.DURATION, billsec, caller: call.CALLERID, extra: skip ? "summary=skipped(voice-agent)" : isLeg ? "summary=normal(filter-off,would-skip)" : "summary=normal",

@@ -70,6 +70,31 @@ export function missedCallVoiceDecision(calls: VoiceCallState[], now: Date): Mis
   return { action: "send", reason: capped ? "voice_wait_cap" : "no_real_conversation" };
 }
 
+/**
+ * Safety net for the PayCall filter (Or, 21/11/2026): a call PayCall skipped because it went to Eliran
+ * must show up as a voice call that ENDED (the end-of-call webhook arrived with the transcript).
+ * PayCall's clock can read an hour early in winter (issue #223), so the match window is wide.
+ */
+export const VOICE_FALLBACK_WINDOW_BEFORE_MS = VOICE_MATCH_BEFORE_MS;
+export const VOICE_FALLBACK_WINDOW_AFTER_MS = 100 * 60 * 1000;
+
+export type VoiceFallbackDecision =
+  | { action: "skip"; reason: "first_sighting" | "voice_call_ended" | "voice_call_in_progress" }
+  | { action: "fallback"; reason: "no_voice_call" | "voice_call_never_ended" };
+
+/**
+ * `firstSighting` = the first paycall-sync run that sees the call (the next run is ~10 minutes later).
+ * skip = Eliran's pipeline has it (or may still get it); fallback = PayCall handles the call as usual.
+ */
+export function voiceFallbackDecision(calls: VoiceCallState[], firstSighting: boolean, now: Date): VoiceFallbackDecision {
+  if (firstSighting) return { action: "skip", reason: "first_sighting" };
+  if (calls.some((c) => c.status === "ended")) return { action: "skip", reason: "voice_call_ended" };
+  if (calls.some((c) => c.status === "in_progress" && now.getTime() - c.startedAt.getTime() < VOICE_WA_MAX_WAIT_MS)) {
+    return { action: "skip", reason: "voice_call_in_progress" };
+  }
+  return { action: "fallback", reason: calls.length ? "voice_call_never_ended" : "no_voice_call" };
+}
+
 /** What processMissedCall wrote — for the verification log (Or: show whether the "שיחה שלא נענתה" lead line was written). */
 export function missedCallWriteLabel(r: { skipped: boolean; customerId?: string | null; leadId?: string | null }): string {
   if (r.customerId) return r.skipped ? "customer-note-existed" : "customer-note";
