@@ -331,10 +331,35 @@ export async function POST(
             depositPaid: false,
             customerToken: require("crypto").randomBytes(32).toString("hex"),
           },
-          select: { id: true, customerToken: true },
+          select: { id: true, customerToken: true, createdAt: true },
         })
 
-        result = { booking, customer, status, isNewCustomer }
+        // Race guard: the check above and the create are not atomic (no unique index on
+        // Booking), so two simultaneous requests for one slot both got in. Re-check after
+        // writing — the earlier booking keeps the slot, the later one is removed.
+        let lostRace = false
+        if (!isBoarding) {
+          const rival = await prisma.booking.findFirst({
+            where: {
+              businessId: business.id,
+              id: { not: booking.id },
+              status: { in: ["confirmed", "pending"] },
+              startAt: { lt: endAt },
+              endAt: { gt: startAt },
+              OR: [
+                { createdAt: { lt: booking.createdAt } },
+                { createdAt: booking.createdAt, id: { lt: booking.id } },
+              ],
+            },
+            select: { id: true },
+          })
+          if (rival) {
+            await prisma.booking.delete({ where: { id: booking.id } }).catch(() => null)
+            lostRace = true
+          }
+        }
+
+        result = lostRace ? null : { booking, customer, status, isNewCustomer }
       }
     }
   } catch (err: any) {
