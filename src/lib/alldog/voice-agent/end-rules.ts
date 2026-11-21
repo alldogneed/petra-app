@@ -15,8 +15,11 @@ export const SIGNATURE_TOLERANCE_MS = 30 * 60 * 1000;
 export const TRANSCRIPT_MAX_CHARS = 50_000;
 /** A call shorter than this in which the caller said nothing gets no callback task (Or). */
 export const SILENT_CALL_MAX_SECONDS = 10;
-/** First summary attempt 2 minutes after the call ends, so a /book that is still running finishes first. */
-export const SUMMARY_FIRST_DELAY_MS = 2 * 60 * 1000;
+/**
+ * The summary starts 20 seconds after the call ends (the end-of-call webhook triggers it itself), so
+ * the work a tool call left running at hang-up finishes first and the rep hears within a minute or two.
+ */
+export const SUMMARY_FIRST_DELAY_MS = 20 * 1000;
 /** Retry delays after attempt 1, 2, 3, 4 (same as the PayCall queue); attempt 5 is final. */
 export const SUMMARY_RETRY_DELAYS_MIN = [3, 10, 30, 120] as const;
 export const SUMMARY_MAX_ATTEMPTS = SUMMARY_RETRY_DELAYS_MIN.length + 1;
@@ -138,7 +141,7 @@ export function isRealVoiceConversation(outcome: string | null | undefined): boo
 
 export type CallbackDecision =
   | { open: true }
-  | { open: false; reason: "tool_outcome" | "hidden_number" | "silent_short_call" };
+  | { open: false; reason: "tool_outcome" | "hidden_number" | "silent_short_call" | "not_relevant" };
 
 /**
  * A call that ended without /book or /details gets the "לחזור טלפונית" task — unless the number is
@@ -149,8 +152,11 @@ export function callbackDecision(c: {
   phoneNorm: string | null;
   durationSeconds: number | null;
   userWords: boolean;
+  /** false = the summary says the call is not about the caller's own dog (supplier, wrong number). */
+  relevant?: boolean;
 }): CallbackDecision {
   if (c.outcome) return { open: false, reason: "tool_outcome" };
+  if (c.relevant === false) return { open: false, reason: "not_relevant" };
   if (!c.phoneNorm) return { open: false, reason: "hidden_number" };
   if (!c.userWords && (c.durationSeconds ?? 0) < SILENT_CALL_MAX_SECONDS) return { open: false, reason: "silent_short_call" };
   return { open: true };

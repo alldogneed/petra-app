@@ -8,7 +8,7 @@ import prisma from "@/lib/prisma";
 import { claimOnce } from "@/lib/rate-limit";
 import { readEnv } from "@/lib/read-env";
 import { notifyOwnerAllDog } from "@/lib/notify-owner";
-import { voiceAgentActiveFor, voiceAgentSettings } from "@/lib/alldog/config";
+import { isVoicePaycallFilterEnabled, voiceAgentActiveFor, voiceAgentSettings } from "@/lib/alldog/config";
 import {
   VOICE_MATCH_AFTER_MS,
   VOICE_MATCH_BEFORE_MS,
@@ -55,6 +55,9 @@ interface PaycallCallLike {
 /**
  * Answered-call summaries (webhook + sync): true = this call went to Eliran → skip it (not downloaded,
  * transcribed or summarized). Always logs one verification line while the guard is active.
+ * Muted ONLY when ALLDOG_VOICE_PAYCALL_FILTER_ENABLED is on AND the destination is the Telnyx number
+ * (Or, 21/11/2026): a destination that is missing or does not match never mutes PayCall's summary —
+ * two summaries are better than none. Until the switch is on the line says what WOULD be skipped.
  */
 export async function skipPaycallSummaryForVoiceAgent(
   call: PaycallCallLike,
@@ -63,12 +66,13 @@ export async function skipPaycallSummaryForVoiceAgent(
 ): Promise<boolean> {
   if (!voiceGuardActive()) return false;
   const number = await voiceAgentNumberOrWarn();
-  const skip = !!number && isVoiceAgentLeg(call.CALLEE, number);
+  const isLeg = !!number && isVoiceAgentLeg(call.CALLEE, number);
+  const skip = isLeg && isVoicePaycallFilterEnabled();
   // paycall-sync re-reads 48 h every 10 minutes → its line is logged once per call.
   if (source === "sync" && !(await claimOnce(`alldog-voice-sync-log:${call.ID}`, 3 * DAY_SECONDS))) return skip;
   console.log(paycallVoiceLogLine({
     source, callId: call.ID, disposition: call.DISPOSITION, callee: call.CALLEE, agentNumber: number,
-    duration: call.DURATION, billsec, caller: call.CALLERID, extra: skip ? "summary=skipped(voice-agent)" : "summary=normal",
+    duration: call.DURATION, billsec, caller: call.CALLERID, extra: skip ? "summary=skipped(voice-agent)" : isLeg ? "summary=normal(filter-off,would-skip)" : "summary=normal",
   }));
   return skip;
 }

@@ -1,6 +1,6 @@
 /**
  * AllDog voice agent — call-start: sales slots (spread, spoken labels, blocks), secret check,
- * caller phone + WhatsApp summary helpers. Pure — prisma is mocked.
+ * caller phone + first-name helpers. Pure — prisma is mocked.
  */
 jest.mock("@/lib/prisma", () => ({ __esModule: true, default: {}, prisma: {} }));
 
@@ -15,7 +15,8 @@ import {
   type Interval,
 } from "@/lib/alldog/voice-agent/slots";
 import { verifyVoiceAgentSecret } from "@/lib/alldog/voice-agent/auth";
-import { callerPhoneNormOf, whatsappSummaryText } from "@/lib/alldog/voice-agent/start";
+import { callerPhoneNormOf } from "@/lib/alldog/voice-agent/start";
+import { firstNameOf } from "@/lib/alldog/voice-agent/booking-rules";
 import { israelInstant } from "@/lib/alldog/time";
 
 // November 2026 = Israel winter time (UTC+2). 15/11/2026 is a Sunday.
@@ -179,7 +180,7 @@ describe("voice agent secret", () => {
   });
 });
 
-describe("caller phone + WhatsApp summary helpers", () => {
+describe("caller phone + first name helpers", () => {
   it("normalizes like resolveLeadForContact, null for hidden / empty", () => {
     expect(callerPhoneNormOf("+972501234567")).toBe("0501234567");
     expect(callerPhoneNormOf("050-123-4567")).toBe("0501234567");
@@ -191,11 +192,12 @@ describe("caller phone + WhatsApp summary helpers", () => {
     expect(callerPhoneNormOf("123")).toBeNull();
   });
 
-  it("turns the bot's journal line into one short line", () => {
-    const raw = "[וואטסאפ · בוט] סיכום שיחה (12/11 10:30)\nכלב: רקס, לברדור בן שנתיים · עיר: כפר סבא\n• לחזור טלפונית\n• מדריך: https://all-dog.co.il/guides/x";
-    expect(whatsappSummaryText(raw)).toBe("כלב: רקס, לברדור בן שנתיים · עיר: כפר סבא · לחזור טלפונית");
-    expect(whatsappSummaryText("[וואטסאפ · בוט] שיחה בוואטסאפ")).toBeNull();
-    expect(whatsappSummaryText(null)).toBeNull();
-    expect(whatsappSummaryText("א".repeat(400))!.length).toBe(300);
+  it("only the first name goes back to the agent; a placeholder / number gives none", () => {
+    expect(firstNameOf("דנה כהן")).toBe("דנה");
+    expect(firstNameOf("  אור אילוף בבית הלקוח ")).toBe("אור");
+    expect(firstNameOf("בן-ציון לוי")).toBe("בן-ציון");
+    expect(firstNameOf("0541234567")).toBeNull();
+    expect(firstNameOf("א")).toBeNull();
+    expect(firstNameOf(null)).toBeNull();
   });
 });

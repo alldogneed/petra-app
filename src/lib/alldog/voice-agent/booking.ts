@@ -33,6 +33,7 @@ import { salesWorkdays, spokenSlotLabel, type SalesSlot } from "@/lib/alldog/voi
 import { loadSalesBusy } from "@/lib/alldog/voice-agent/busy";
 import { callerPhoneNormOf, upsertCall } from "@/lib/alldog/voice-agent/start";
 import { afterSalesCallBooked } from "@/lib/alldog/voice-agent/after-booking";
+import { alertSalesRep } from "@/lib/alldog/voice-agent/rep-alert";
 import { voiceAgentSettings } from "@/lib/alldog/config";
 import {
   CALLBACK_TASK_PREFIX,
@@ -46,6 +47,8 @@ import {
   cleanCity,
   cleanName,
   cleanReason,
+  callbackDueAt,
+  callbackDueLabel,
   nearestAlternatives,
   petFromDetails,
   salesBriefFromDetails,
@@ -89,14 +92,15 @@ function leadLink(leadId: string): string {
 }
 
 /** Create / update the lead (fill empty only), link it to the call, store what Eliran collected. */
-export async function saveVoiceLead(businessId: string, input: VoiceLeadInput, phone: string, now: Date) {
+export async function saveVoiceLead(businessId: string, input: VoiceLeadInput, phone: string, now: Date, opts: { keepBrief?: boolean } = {}) {
   const name = cleanName(input.fullName);
   const city = cleanCity(input.city);
   const { leadId, created } = await upsertLeadFromContact({
     businessId,
     phone,
     name,
-    placeholderName: `שיחה קולית ${phone}`,
+    // "שיחה מ-…" is the placeholder isPlaceholderLeadName knows: the name heard later (tool / summary) replaces it.
+    placeholderName: `שיחה מ-${phone}`,
     refresh: false,
     source: VOICE_LEAD_SOURCE,
     city,
@@ -116,7 +120,9 @@ export async function saveVoiceLead(businessId: string, input: VoiceLeadInput, p
   }
   await prisma.voiceAgentCall.update({
     where: { providerConversationId: input.conversationId },
-    data: { leadId, salesBrief: salesBriefFromDetails(input) },
+    // keepBrief: the summary job merges what it heard into the brief itself (what the tool call sent wins).
+    // callerPhoneNorm: also the number a hidden caller said aloud, so the summary job and the alerts have it.
+    data: { leadId, callerPhoneNorm: phone, ...(opts.keepBrief ? {} : { salesBrief: salesBriefFromDetails(input) }) },
   });
   const lead = await prisma.lead.findFirst({
     where: { id: leadId, businessId },
@@ -136,65 +142,76 @@ function openFollowupTask(businessId: string, leadId: string) {
       businessId, relatedEntityType: "LEAD", relatedEntityId: leadId, status: { in: ["OPEN", "IN_PROGRESS"] },
       OR: [{ title: { contains: CALLBACK_TASK_PREFIX } }, { title: { startsWith: URGENT_TITLE_PREFIX } }],
     },
-    select: { id: true, title: true, priority: true },
+    select: { id: true, title: true, priority: true, dueAt: true },
   });
 }
 
-/** One "לחזור טלפונית" task per lead (an open one from the bot counts); urgent → "דחוף: " + URGENT. */
-export async function ensureCallbackTask(businessId: string, leadId: string, displayName: string, phone: string, input: VoiceDetails) {
+/** "דחוף: <why> · מתי: <when>" for the task and the alerts. */
+function urgentLine(input: VoiceDetails): string {
+  const reason = cleanReason(input.urgentReason) ?? "דיווח על נשיכה";
+  const when = cleanReason(input.eventWhen);
+  return when ? `${reason} · מתי: ${when}` : reason;
+}
+
+/**
+ * One "לחזור טלפונית" task per lead (an open one from the bot counts); urgent → "דחוף: " + URGENT.
+ * Target (Or, 21/11/2026): 30 minutes after the call inside office hours, else the next opening
+ * (callbackDueAt) — what Eliran promises the caller. An open task gets the earlier target.
+ */
+export async function ensureCallbackTask(
+  businessId: string, leadId: string, displayName: string, phone: string, input: VoiceDetails, callAt: Date = new Date(),
+) {
   const urgent = !!input.urgent;
+  const dueAt = callbackDueAt(callAt);
   const open = await openFollowupTask(businessId, leadId);
   if (open) {
-    if (urgent && open.priority !== "URGENT") {
+    const makeUrgent = urgent && open.priority !== "URGENT";
+    const earlier = !open.dueAt || open.dueAt.getTime() > dueAt.getTime();
+    if (makeUrgent || earlier) {
       await prisma.task.updateMany({
         where: { id: open.id, businessId },
-        data: { priority: "URGENT", title: open.title.startsWith(URGENT_TITLE_PREFIX) ? open.title : `${URGENT_TITLE_PREFIX}${open.title}` },
+        data: {
+          ...(makeUrgent ? { priority: "URGENT", title: open.title.startsWith(URGENT_TITLE_PREFIX) ? open.title : `${URGENT_TITLE_PREFIX}${open.title}` } : {}),
+          ...(earlier ? { dueAt } : {}),
+        },
       });
     }
     return;
   }
   await createLeadTask(businessId, leadId, {
-    title: `${urgent ? URGENT_TITLE_PREFIX : ""}${CALLBACK_TASK_PREFIX} ל${displayName} (שיחה קולית)`,
+    title: `${urgent ? URGENT_TITLE_PREFIX : ""}${CALLBACK_TASK_PREFIX} ל${displayName} (שיחת טלפון עם אלירן)`,
     description: [
-      urgent ? `דחוף: ${cleanReason(input.urgentReason) ?? "דיווח על נשיכה"}` : null,
+      urgent ? `דחוף: ${urgentLine(input)}` : null,
       cleanReason(input.problem) ? `מה הלקוח מחפש: ${cleanReason(input.problem)}` : null,
       `טלפון: ${phone}`,
+      `הובטח ללקוח שיחזרו אליו: ${callbackDueLabel(dueAt, callAt)}`,
       "פרטים משיחה עם אלירן (סוכן קולי).",
     ].filter(Boolean).join("\n"),
     priority: urgent ? "URGENT" : "HIGH",
-    dueDate: israelYmd(),
+    dueAt,
   });
 }
 
-/** Urgent (bite): the existing owner alert, once per call, + an URGENT task when there is none. */
-async function handleUrgent(businessId: string, conversationId: string, leadId: string, displayName: string, phone: string, input: VoiceDetails) {
+/**
+ * Urgent (bite): the existing owner alert + the rep's urgent alert (bell + WhatsApp), each once per
+ * call. The URGENT task itself is ensureCallbackTask's job.
+ */
+export async function handleUrgent(
+  businessId: string, conversationId: string, leadId: string, displayName: string, phone: string, input: VoiceDetails, callAt: Date = new Date(),
+) {
   if (!input.urgent) return;
-  const reason = cleanReason(input.urgentReason) ?? "דיווח על נשיכה";
+  const reason = urgentLine(input);
   if (await claimOnce(`alldog-voice-urgent:${conversationId}`, DAY_SECONDS)) {
-    await runAfterResponse(
-      notifyOwnerAllDog({
-        title: "דחוף: דיווח על נשיכה בשיחה קולית (אלירן)",
-        lines: [`${displayName} · טלפון: ${phone}`, reason],
-        url: leadLink(leadId),
-      }),
-    );
+    await notifyOwnerAllDog({
+      title: "דחוף: דיווח על נשיכה בשיחת טלפון (אלירן)",
+      lines: [`${displayName} · טלפון: ${phone}`, reason],
+      url: leadLink(leadId),
+    }).catch((err) => console.error("[alldog-voice] urgent owner alert failed", err));
   }
-  const open = await openFollowupTask(businessId, leadId);
-  if (open && open.priority !== "URGENT") {
-    // An open (bot / earlier) callback task becomes the urgent one instead of a second task.
-    await prisma.task.updateMany({
-      where: { id: open.id, businessId },
-      data: { priority: "URGENT", title: open.title.startsWith(URGENT_TITLE_PREFIX) ? open.title : `${URGENT_TITLE_PREFIX}${open.title}` },
-    });
-  }
-  if (!open) {
-    await createLeadTask(businessId, leadId, {
-      title: `${URGENT_TITLE_PREFIX}להתקשר ל${displayName} (שיחה קולית)`,
-      description: [reason, `טלפון: ${phone}`, "פרטים משיחה עם אלירן (סוכן קולי)."].join("\n"),
-      priority: "URGENT",
-      dueDate: israelYmd(),
-    });
-  }
+  await alertSalesRep({
+    businessId, conversationId, kind: "urgent", leadId, displayName, phone, urgent: true,
+    line: reason, dueLabel: callbackDueLabel(callbackDueAt(callAt), callAt),
+  });
 }
 
 /** The lead's next scheduled LeadMeeting that has not started yet, or null. */
@@ -260,11 +277,14 @@ export async function bookSalesCall(businessId: string, input: VoiceBookInput, n
   if (!phone) return { status: "phone_required" };
 
   const { lead, displayName } = await saveVoiceLead(businessId, input, phone, now);
-  await handleUrgent(businessId, input.conversationId, lead.id, displayName, phone, input);
+  if (input.urgent) {
+    await ensureCallbackTask(businessId, lead.id, displayName, phone, input, now);
+    await runAfterResponse(handleUrgent(businessId, input.conversationId, lead.id, displayName, phone, input, now));
+  }
 
   // A lead already converted to a customer cannot get a LeadMeeting (same rule as createLeadMeeting).
   if (lead.customerId) {
-    await ensureCallbackTask(businessId, lead.id, displayName, phone, input);
+    await ensureCallbackTask(businessId, lead.id, displayName, phone, input, now);
     await prisma.voiceAgentCall.update({ where: { id: call.id }, data: { outcome: input.urgent ? "urgent" : "details_only" } });
     return { status: "existing_customer" };
   }
@@ -340,19 +360,39 @@ export async function bookSalesCall(businessId: string, input: VoiceBookInput, n
   return { status: "booked", meeting, stageChanged };
 }
 
+/**
+ * /details. The answer goes back as soon as the lead is saved (the caller is waiting on the line);
+ * the task, the journal line, the outcome and the urgent alerts run right after the response.
+ * If that later part fails, the call keeps no outcome and the end-of-call summary job opens the
+ * task itself (ensureFollowupForCall) — a saved call is never left without a follow-up.
+ */
 export async function saveVoiceDetails(businessId: string, input: VoiceLeadInput, now: Date = new Date()): Promise<VoiceDetailsResult> {
   const call = await upsertCall(businessId, input, callerPhoneNormOf(input.callerPhone), now);
   const phone = callerPhoneNormOf(input.callerPhone) ?? callerPhoneNormOf(input.callbackPhone);
   if (!phone) return { status: "phone_required" };
 
   const { lead, displayName } = await saveVoiceLead(businessId, input, phone, now);
-  await handleUrgent(businessId, input.conversationId, lead.id, displayName, phone, input);
-  await ensureCallbackTask(businessId, lead.id, displayName, phone, input);
-  await addLeadCallLog(lead.id, `${VOICE_LOG_PREFIX} נאספו פרטים, בלי קביעת שיחה · לחזור טלפונית`, "");
+  await runAfterResponse(afterDetailsSaved(businessId, input, { id: call.id, leadMeetingId: call.leadMeetingId }, lead.id, displayName, phone, now));
+  return { status: "saved" };
+}
+
+export async function afterDetailsSaved(
+  businessId: string, input: VoiceLeadInput, call: { id: string; leadMeetingId: string | null },
+  leadId: string, displayName: string, phone: string, now: Date,
+): Promise<void> {
+  await ensureCallbackTask(businessId, leadId, displayName, phone, input, now);
+  // The call's ONE journal line: this interim text now, replaced in place by the summary (summary-job.ts).
+  const row = await prisma.voiceAgentCall.findUnique({ where: { id: call.id }, select: { summaryCallLogId: true } });
+  let logId = row?.summaryCallLogId ?? null;
+  if (!logId) {
+    const log = await addLeadCallLog(leadId, `${VOICE_LOG_PREFIX} נאספו פרטים · לחזור טלפונית: ${callbackDueLabel(callbackDueAt(now), now)}\nהסיכום המלא ייכתב כאן בתוך כמה דקות.`, "");
+    logId = log.id;
+  }
   // A call that already booked keeps "meeting_booked"; urgent always wins.
   const keepBooked = !!call.leadMeetingId && !input.urgent;
-  if (!keepBooked) {
-    await prisma.voiceAgentCall.update({ where: { id: call.id }, data: { outcome: input.urgent ? "urgent" : "details_only" } });
-  }
-  return { status: "saved" };
+  await prisma.voiceAgentCall.update({
+    where: { id: call.id },
+    data: { summaryCallLogId: logId, ...(keepBooked ? {} : { outcome: input.urgent ? "urgent" : "details_only" }) },
+  });
+  await handleUrgent(businessId, input.conversationId, leadId, displayName, phone, input, now);
 }

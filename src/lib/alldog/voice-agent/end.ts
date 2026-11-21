@@ -2,8 +2,9 @@
  * AllDog voice agent — storing the end-of-call webhook (POST /api/webhooks/alldog-voice/end).
  * Fast and idempotent per ElevenLabs conversation id (a retried webhook updates the same row):
  * status "ended", times, duration, the transcript (≤ 50,000 chars + ElevenLabs' own summary as a
- * fallback), the caller id if /start never ran — and the summary scheduled 2 minutes after the end
- * (summary-job.ts, so a /book still running at hang-up finishes first). Nothing else runs here.
+ * fallback), the caller id if /start never ran — and the summary scheduled 20 seconds after the end
+ * (summary-job.ts; summaryCallLogId may already hold save_details' interim journal line, so "no
+ * summary yet" is `summary IS NULL`). Nothing else runs here.
  */
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
@@ -30,7 +31,7 @@ export async function recordCallEnd(businessId: string, c: ParsedPostCall, now: 
 
   const existing = await prisma.voiceAgentCall.findUnique({
     where: { providerConversationId: c.conversationId },
-    select: { id: true, startedAt: true, callerPhone: true, externalCallId: true, summaryCallLogId: true, summaryAttempts: true, summaryNextAt: true },
+    select: { id: true, startedAt: true, callerPhone: true, externalCallId: true, summary: true, summaryAttempts: true, summaryNextAt: true },
   });
 
   if (!existing) {
@@ -60,7 +61,7 @@ export async function recordCallEnd(businessId: string, c: ParsedPostCall, now: 
   }
 
   // Schedule the summary only once (a retried webhook must not push a pending one back or redo a done one).
-  const schedule = !existing.summaryCallLogId && !existing.summaryNextAt && existing.summaryAttempts < SUMMARY_MAX_ATTEMPTS;
+  const schedule = !existing.summary && !existing.summaryNextAt && existing.summaryAttempts < SUMMARY_MAX_ATTEMPTS;
   await prisma.voiceAgentCall.update({
     where: { id: existing.id },
     data: {

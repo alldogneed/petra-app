@@ -1,14 +1,22 @@
 /**
  * AllDog voice agent — the end-of-call summary queue + the stale-call cleanup.
- * Run by /api/cron/alldog-call-retry (every 5 minutes, Supabase pg_cron) — no new scheduler.
+ * Started by the end-of-call webhook itself (20 s after the call) and, as the safety net, by
+ * /api/cron/alldog-call-retry (every 5 minutes, Supabase pg_cron) — no new scheduler.
  *
- * processDueVoiceSummaries — the VoiceAgentCall row is the lock (conditional updateMany, like
- * PaycallCallRetry): attempt 1 two minutes after the call, then +3, +10, +30 min, +2 h (final).
- * Every attempt first makes sure a call that ended WITHOUT /book or /details has its lead +
- * "לחזור טלפונית" task (callbackDecision: not for a hidden number, not for a silent call under
- * 10 s) — so that never depends on the summary. Then Claude writes the summary into ONE lead
- * journal line (summaryCallLogId, updated in place). Final failure → ElevenLabs' own summary is
- * written instead + an alert to Or (voice_summary).
+ * processVoiceSummary — the VoiceAgentCall row is the lock (conditional updateMany, like
+ * PaycallCallRetry): attempt 1 right after the call, then +3, +10, +30 min, +2 h (final).
+ * The summary is ALWAYS written, whether save_details ran or not, by the SAME code as the WhatsApp
+ * bot's summary (src/lib/alldog/summary-core.ts — same model, fields and journal lines). One attempt:
+ *   1. Claude summarizes the transcript (skipped when the caller said nothing).
+ *   2. A call that ended WITHOUT /book or /details gets its lead + "לחזור טלפונית" task
+ *      (callbackDecision: not for a hidden number, not for a silent call under 10 s, not for a call
+ *      that is not about the caller's dog) — also when step 1 failed, so it never waits for a retry.
+ *   3. The lead's empty fields (name, city, dog) are filled from the summary.
+ *   4. The summary found an urgent case nobody flagged → URGENT task + the urgent alerts.
+ *   5. The call's ONE journal line on the lead (summaryCallLogId) — a line of its own, next to the
+ *      WhatsApp summary line, never replacing it.
+ *   6. The rep's alert (bell + WhatsApp) with the summary line, once per call.
+ * Final failure → ElevenLabs' own summary is written instead + an alert to Or (voice_summary).
  *
  * cleanupStaleVoiceCalls — a call still "in_progress" 60 minutes after it started never got its
  * webhook: marked "failed", the caller (if the number is known and no lead/task yet) gets the
@@ -19,9 +27,11 @@ import { claimOnce } from "@/lib/rate-limit";
 import { notifyOwnerAllDog } from "@/lib/notify-owner";
 import { alertAllDogFailure } from "@/lib/alldog/failure-alerts";
 import { voiceAgentSettings } from "@/lib/alldog/config";
-import { addLeadCallLog, appUrl, updateLeadCallLog } from "@/lib/alldog/leads";
-import { heDayLabel } from "@/lib/alldog/time";
-import { ensureCallbackTask, saveVoiceLead } from "@/lib/alldog/voice-agent/booking";
+import { addLeadCallLog, appUrl, isPlaceholderLeadName, updateLeadCallLog } from "@/lib/alldog/leads";
+import { heDayLabel, israelParts } from "@/lib/alldog/time";
+import { ensureCallbackTask, handleUrgent, saveVoiceLead } from "@/lib/alldog/voice-agent/booking";
+import { callbackDueAt, callbackDueLabel, type VoiceDetails } from "@/lib/alldog/voice-agent/booking-rules";
+import { alertSalesRep } from "@/lib/alldog/voice-agent/rep-alert";
 import {
   STALE_CALL_MS,
   callbackDecision,
@@ -31,10 +41,13 @@ import {
   type CallbackDecision,
   type StoredTranscript,
 } from "@/lib/alldog/voice-agent/end-rules";
-import { formatVoiceLog, summarizeVoiceCall, type VoiceSummary } from "@/lib/alldog/voice-agent/summary";
+import { formatVoiceSummary, summarizeConversation, summaryOneLine, type VoiceSummary } from "@/lib/alldog/summary-core";
 
 const LOCK_MS = 5 * 60 * 1000;
 const DAY_SECONDS = 24 * 60 * 60;
+/** The model reads the end of a long call (same idea as the WhatsApp summary's last 12,000 characters). */
+const TRANSCRIPT_FOR_SUMMARY_CHARS = 30_000;
+const NO_WORDS_NOTE = "המתקשר לא דיבר בשיחה.";
 
 type CallRow = NonNullable<Awaited<ReturnType<typeof loadCall>>>;
 
@@ -43,7 +56,7 @@ function loadCall(id: string) {
     where: { id },
     select: {
       id: true, businessId: true, providerConversationId: true, leadId: true, callerPhoneNorm: true, outcome: true,
-      startedAt: true, durationSeconds: true, transcript: true, salesBrief: true, leadMeetingId: true,
+      startedAt: true, createdAt: true, durationSeconds: true, transcript: true, salesBrief: true, leadMeetingId: true,
       summaryAttempts: true, summaryCallLogId: true,
     },
   });
@@ -54,23 +67,66 @@ function storedTranscript(row: { transcript: unknown }): StoredTranscript {
   return { turns: Array.isArray(t.turns) ? t.turns : [], omittedTurns: t.omittedTurns ?? 0, providerSummary: t.providerSummary ?? null, terminationReason: t.terminationReason ?? null };
 }
 
-/** Lead + "לחזור טלפונית" for a call that ended without /book or /details. Idempotent: once an outcome is set it is a no-op. */
-export async function ensureFollowupForCall(row: CallRow, now: Date): Promise<CallbackDecision> {
+function dateLabel(d: Date | null): string | null {
+  if (!d) return null;
+  const p = israelParts(d);
+  return `${p.ymd.slice(8, 10)}/${p.ymd.slice(5, 7)} ${p.hhmm}`;
+}
+
+/** What the summary heard → the same details shape save_details sends (fill-empty on the lead). */
+export function detailsFromSummary(s: VoiceSummary | null): VoiceDetails {
+  if (!s) return {};
+  const urgent = s.urgency_level === "high";
+  return {
+    fullName: s.caller_name, dogName: s.dog_name, breed: s.dog_breed, age: s.dog_age, city: s.city, problem: s.problem,
+    urgent, urgentReason: urgent ? s.urgency ?? s.problem : null, eventWhen: s.event_when,
+  };
+}
+
+/**
+ * Lead + "לחזור טלפונית" for a call that ended without /book or /details, with whatever the
+ * summary heard. Idempotent: once an outcome is set it is a no-op.
+ */
+export async function ensureFollowupForCall(row: CallRow, now: Date, s: VoiceSummary | null = null): Promise<CallbackDecision> {
   const t = storedTranscript(row);
-  const decision = callbackDecision({ outcome: row.outcome, phoneNorm: row.callerPhoneNorm, durationSeconds: row.durationSeconds, userWords: hasUserWords(t.turns) });
+  const decision = callbackDecision({
+    outcome: row.outcome, phoneNorm: row.callerPhoneNorm, durationSeconds: row.durationSeconds,
+    userWords: hasUserWords(t.turns), relevant: s ? s.relevant : true,
+  });
+  const callAt = row.startedAt ?? row.createdAt;
   if (decision.open && row.callerPhoneNorm) {
-    const { lead, displayName } = await saveVoiceLead(row.businessId, { conversationId: row.providerConversationId }, row.callerPhoneNorm, now);
-    await ensureCallbackTask(row.businessId, lead.id, displayName, row.callerPhoneNorm, {});
-    await prisma.voiceAgentCall.update({ where: { id: row.id }, data: { outcome: "hung_up_early", leadId: lead.id } });
+    const details = detailsFromSummary(s);
+    const { lead, displayName } = await saveVoiceLead(row.businessId, { conversationId: row.providerConversationId, ...details }, row.callerPhoneNorm, now);
+    await ensureCallbackTask(row.businessId, lead.id, displayName, row.callerPhoneNorm, details, callAt);
+    await prisma.voiceAgentCall.update({ where: { id: row.id }, data: { outcome: details.urgent ? "urgent" : "hung_up_early", leadId: lead.id } });
+    await handleUrgent(row.businessId, row.providerConversationId, lead.id, displayName, row.callerPhoneNorm, details, callAt);
   } else if (!row.outcome) {
-    // Hidden number / silent short call: no task, but the outcome is recorded (it is not a real conversation).
-    await prisma.voiceAgentCall.update({ where: { id: row.id }, data: { outcome: "hung_up_early" } });
+    // Hidden number / silent short call / not about a dog: no task, but the outcome is recorded.
+    await prisma.voiceAgentCall.update({ where: { id: row.id }, data: { outcome: !decision.open && decision.reason === "not_relevant" ? "not_relevant" : "hung_up_early" } });
   }
   return decision;
 }
 
+/**
+ * save_details / book ran (the lead exists): fill what is still empty from the summary, and raise
+ * the urgent task + alerts when the summary found an urgent case the tool call did not flag.
+ */
+async function applySummaryToLead(row: CallRow, s: VoiceSummary, now: Date): Promise<void> {
+  if (!row.leadId || !row.callerPhoneNorm) return;
+  const details = detailsFromSummary(s);
+  const callAt = row.startedAt ?? row.createdAt;
+  const { lead, displayName } = await saveVoiceLead(row.businessId, { conversationId: row.providerConversationId, ...details }, row.callerPhoneNorm, now, { keepBrief: true });
+  if (details.urgent && row.outcome !== "urgent") {
+    await ensureCallbackTask(row.businessId, lead.id, displayName, row.callerPhoneNorm, details, callAt);
+    await prisma.voiceAgentCall.update({ where: { id: row.id }, data: { outcome: "urgent" } });
+    await handleUrgent(row.businessId, row.providerConversationId, lead.id, displayName, row.callerPhoneNorm, details, callAt);
+  }
+}
+
 async function outcomeLine(row: CallRow, decision: CallbackDecision | null): Promise<string> {
   const rep = voiceAgentSettings().salesRepName;
+  const callAt = row.startedAt ?? row.createdAt;
+  const due = `לחזור טלפונית: ${callbackDueLabel(callbackDueAt(callAt), callAt)}`;
   let booked: string | null = null;
   if (row.leadMeetingId) {
     const m = await prisma.leadMeeting.findFirst({ where: { id: row.leadMeetingId }, select: { date: true, startTime: true, status: true } });
@@ -78,13 +134,13 @@ async function outcomeLine(row: CallRow, decision: CallbackDecision | null): Pro
   }
   switch (row.outcome) {
     case "meeting_booked": return booked ?? "נקבעה שיחת מכירה";
-    case "details_only": return "נאספו פרטים, בלי קביעה · לחזור טלפונית";
-    case "urgent": return `דחוף · ${booked ?? "לחזור טלפונית בהקדם"}`;
+    case "details_only": return `נאספו פרטים · ${due}`;
+    case "urgent": return `דחוף · ${booked ?? due}`;
     case "not_relevant": return "לא רלוונטי (לפי הסיכום)";
     case "hung_up_early":
       if (decision && !decision.open && decision.reason === "hidden_number") return "מספר חסוי · אין למי לחזור";
       if (decision && !decision.open && decision.reason === "silent_short_call") return "שיחה קצרה, המתקשר לא דיבר";
-      return "השיחה הסתיימה בלי קביעה · לחזור טלפונית";
+      return `השיחה הסתיימה בלי שנאספו פרטים · ${due}`;
     default: return "לא ידוע";
   }
 }
@@ -104,14 +160,50 @@ function mergedBrief(existing: unknown, s: VoiceSummary): Record<string, string 
   const e = (existing && typeof existing === "object" ? existing : {}) as Record<string, string | null>;
   const pick = (k: string, v: string | null) => (typeof e[k] === "string" && e[k] ? e[k] : v);
   return {
-    dog: pick("dog", s.dog), breed: pick("breed", s.breed), age: pick("age", s.age), city: pick("city", s.city),
-    problem: pick("problem", s.problem), urgency: pick("urgency", s.urgency), notes: pick("notes", s.notes),
+    name: pick("name", s.caller_name), dog: pick("dog", s.dog_name), breed: pick("breed", s.dog_breed), age: pick("age", s.dog_age),
+    city: pick("city", s.city), problem: pick("problem", s.problem), urgency: pick("urgency", s.urgency_level),
+    notes: pick("notes", s.urgency), eventWhen: pick("eventWhen", s.event_when),
   };
 }
 
-async function processOne(id: string, now: Date): Promise<"done" | "retry" | "final" | "skipped"> {
+/**
+ * The rep's alert with the summary line — once per call. Not for a call that is not about a dog,
+ * nor for a silent call nobody can return. A hidden number that left none still alerts (and Or too),
+ * so the call does not disappear.
+ */
+async function alertRep(row: CallRow, decision: CallbackDecision | null, line: string | null): Promise<void> {
+  if (row.outcome === "not_relevant") return;
+  const noLead = !row.leadId;
+  if (noLead && decision && !decision.open && decision.reason === "silent_short_call") return;
+  if (noLead && !hasUserWords(storedTranscript(row).turns)) return;
+  const callAt = row.startedAt ?? row.createdAt;
+  let displayName = row.callerPhoneNorm ?? "מתקשר לא מזוהה";
+  if (row.leadId) {
+    const lead = await prisma.lead.findFirst({ where: { id: row.leadId, businessId: row.businessId }, select: { name: true } });
+    if (lead && !isPlaceholderLeadName(lead.name)) displayName = lead.name;
+  }
+  const sent = await alertSalesRep({
+    businessId: row.businessId, conversationId: row.providerConversationId, kind: "summary", leadId: row.leadId,
+    displayName, phone: row.callerPhoneNorm, urgent: row.outcome === "urgent", line,
+    dueLabel: row.callerPhoneNorm ? callbackDueLabel(callbackDueAt(callAt), callAt) : null,
+  });
+  if (sent && noLead) {
+    // No number to call back → no lead and no task: Or hears about it too.
+    await notifyOwnerAllDog({
+      title: "שיחה עם אלירן ממספר חסוי, בלי מספר לחזרה",
+      lines: [displayName, line ?? "אין סיכום", "לא נוצר ליד. התמליל שמור ברשומת השיחה."],
+      url: `${appUrl()}/leads`,
+    }).catch((err) => console.error("[alldog-voice summary] hidden-number alert failed", err));
+  }
+}
+
+/** One attempt on one call. `force` skips the due-time check (the webhook's own trigger). */
+export async function processVoiceSummary(id: string, now: Date = new Date(), opts: { force?: boolean } = {}): Promise<"done" | "retry" | "final" | "skipped"> {
   const claim = await prisma.voiceAgentCall.updateMany({
-    where: { id, summaryNextAt: { lte: now }, OR: [{ summaryLockedUntil: null }, { summaryLockedUntil: { lt: now } }] },
+    where: {
+      id, summary: null, summaryNextAt: opts.force ? { not: null } : { lte: now },
+      OR: [{ summaryLockedUntil: null }, { summaryLockedUntil: { lt: now } }],
+    },
     data: { summaryLockedUntil: new Date(now.getTime() + LOCK_MS), summaryAttempts: { increment: 1 } },
   });
   if (claim.count === 0) return "skipped";
@@ -119,28 +211,43 @@ async function processOne(id: string, now: Date): Promise<"done" | "retry" | "fi
   if (!row) return "skipped";
   let decision: CallbackDecision | null = null;
   try {
-    decision = await ensureFollowupForCall(row, now);
-    row = (await loadCall(id))!;
     const t = storedTranscript(row);
-    if (!hasUserWords(t.turns)) {
-      const text = formatVoiceLog({ startedAt: row.startedAt, durationSeconds: row.durationSeconds, summary: "המתקשר לא דיבר בשיחה.", outcomeLine: await outcomeLine(row, decision) });
-      const logId = await writeJournal(row, text);
-      await prisma.voiceAgentCall.update({ where: { id }, data: { summary: "המתקשר לא דיבר בשיחה.", summaryCallLogId: logId, summaryNextAt: null, summaryLockedUntil: null, summaryError: null } });
-      return "done";
+    const spoke = hasUserWords(t.turns);
+    let s: VoiceSummary | null = null;
+    let summaryError: unknown = null;
+    if (spoke) {
+      try {
+        s = await summarizeConversation("voice", transcriptText(t.turns).slice(-TRANSCRIPT_FOR_SUMMARY_CHARS));
+        if (!s) summaryError = new Error("no usable summary (refusal / cut off / unparseable)");
+      } catch (err) {
+        summaryError = err;
+      }
     }
-    const s = await summarizeVoiceCall(transcriptText(t.turns), row.startedAt);
-    if (!s) throw new Error("no usable summary (refusal / cut off / unparseable)");
-    if (!s.relevant && row.outcome === "hung_up_early") {
-      await prisma.voiceAgentCall.update({ where: { id }, data: { outcome: "not_relevant" } });
+    // The lead + task never wait for a summary retry.
+    decision = await ensureFollowupForCall(row, now, s);
+    row = (await loadCall(id))!;
+    if (summaryError) {
+      // The rep still hears about the call now (ElevenLabs' own summary, if any); the journal waits for the retry.
+      await alertRep(row, decision, t.providerSummary);
+      throw summaryError;
+    }
+    if (s) {
+      await applySummaryToLead(row, s, now);
       row = (await loadCall(id))!;
     }
-    const brief = mergedBrief(row.salesBrief, s);
-    const text = formatVoiceLog({ startedAt: row.startedAt, durationSeconds: row.durationSeconds, summary: s.summary, ...brief, outcomeLine: await outcomeLine(row, decision) });
+    const text = formatVoiceSummary({
+      sum: s, dateLabel: dateLabel(row.startedAt ?? row.createdAt), durationSeconds: row.durationSeconds,
+      outcomeLine: await outcomeLine(row, decision), note: s ? null : NO_WORDS_NOTE,
+    });
     const logId = await writeJournal(row, text);
     await prisma.voiceAgentCall.update({
       where: { id },
-      data: { summary: s.summary, salesBrief: brief, summaryCallLogId: logId, summaryNextAt: null, summaryLockedUntil: null, summaryError: null },
+      data: {
+        summary: text, ...(s ? { salesBrief: mergedBrief(row.salesBrief, s) } : {}),
+        summaryCallLogId: logId, summaryNextAt: null, summaryLockedUntil: null, summaryError: null,
+      },
     });
+    await alertRep(row, decision, s ? summaryOneLine(s) : NO_WORDS_NOTE);
     return "done";
   } catch (err) {
     const message = (err instanceof Error ? err.message : String(err)).slice(0, 500);
@@ -156,13 +263,13 @@ async function processOne(id: string, now: Date): Promise<"done" | "retry" | "fi
       const fresh = (await loadCall(id))!;
       const t = storedTranscript(fresh);
       const fallback = t.providerSummary ?? "לא התקבל סיכום. התמליל המלא שמור ברשומת השיחה.";
-      const text = formatVoiceLog({
-        startedAt: fresh.startedAt, durationSeconds: fresh.durationSeconds, summary: fallback,
+      const text = formatVoiceSummary({
+        sum: null, dateLabel: dateLabel(fresh.startedAt ?? fresh.createdAt), durationSeconds: fresh.durationSeconds,
         outcomeLine: await outcomeLine(fresh, decision),
-        fallbackNote: "(סיכום אוטומטי של ElevenLabs — הסיכום הרגיל נכשל)",
+        note: `${fallback}\n(סיכום אוטומטי של ElevenLabs — הסיכום הרגיל נכשל)`,
       });
       const logId = await writeJournal(fresh, text);
-      await prisma.voiceAgentCall.update({ where: { id }, data: { summary: fallback, summaryCallLogId: logId, summaryNextAt: null, summaryLockedUntil: null, summaryError: message } });
+      await prisma.voiceAgentCall.update({ where: { id }, data: { summary: text, summaryCallLogId: logId, summaryNextAt: null, summaryLockedUntil: null, summaryError: message } });
       await alertAllDogFailure({ kind: "voice_summary", error: message, phone: fresh.callerPhoneNorm ?? undefined, leadId: fresh.leadId ?? undefined });
     } catch (fallbackErr) {
       console.error("[alldog-voice summary] final fallback failed", fallbackErr);
@@ -178,7 +285,7 @@ export async function processDueVoiceSummaries(
 ): Promise<{ processed: number; done: number; retry: number; final: number }> {
   const started = Date.now();
   const due = await prisma.voiceAgentCall.findMany({
-    where: { summaryNextAt: { lte: now }, OR: [{ summaryLockedUntil: null }, { summaryLockedUntil: { lt: now } }] },
+    where: { summary: null, summaryNextAt: { lte: now }, OR: [{ summaryLockedUntil: null }, { summaryLockedUntil: { lt: now } }] },
     orderBy: { summaryNextAt: "asc" },
     take: opts.limit,
     select: { id: true },
@@ -186,7 +293,7 @@ export async function processDueVoiceSummaries(
   const out = { processed: 0, done: 0, retry: 0, final: 0 };
   for (const { id } of due) {
     if (Date.now() - started > opts.budgetMs) break;
-    const r = await processOne(id, now);
+    const r = await processVoiceSummary(id, now);
     if (r === "skipped") continue;
     out.processed++;
     out[r]++;
@@ -210,7 +317,7 @@ export async function cleanupStaleVoiceCalls(opts: { limit: number }, now: Date 
       // No webhook → no duration / transcript: the caller may have talked, so the callback task is opened.
       try {
         const { lead, displayName } = await saveVoiceLead(row.businessId, { conversationId: row.providerConversationId }, row.callerPhoneNorm, now);
-        await ensureCallbackTask(row.businessId, lead.id, displayName, row.callerPhoneNorm, {});
+        await ensureCallbackTask(row.businessId, lead.id, displayName, row.callerPhoneNorm, {}, row.startedAt ?? row.createdAt);
         await prisma.voiceAgentCall.update({ where: { id }, data: { outcome: "hung_up_early", leadId: lead.id } });
       } catch (err) {
         console.error(`[alldog-voice cleanup] callback for ${id} failed`, err);

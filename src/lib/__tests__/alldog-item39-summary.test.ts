@@ -12,7 +12,7 @@ import { BOT_SUMMARY_JSON_SCHEMA, parseBotSummary } from "@/lib/alldog-bot/summa
 import { CALL_SUMMARY_JSON_SCHEMA } from "@/lib/alldog/call-summary-schema";
 import { CALL_COACHING_JSON_SCHEMA } from "@/lib/alldog/call-coaching";
 import { IMAGE_DESCRIPTION_JSON_SCHEMA } from "@/lib/alldog-bot/images";
-import { VOICE_SUMMARY_JSON_SCHEMA } from "@/lib/alldog/voice-agent/summary";
+import { VOICE_SUMMARY_JSON_SCHEMA } from "@/lib/alldog/summary-core";
 import { FAILURE_KIND_TITLES } from "@/lib/alldog/failure-alerts";
 
 /** Anthropic structured-output limits per request (platform docs, "Explicit limits"). */

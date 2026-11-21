@@ -1,7 +1,7 @@
 /**
  * AllDog voice agent — section 5: ElevenLabs end-of-call webhook rules (signature exactly as the
  * official SDK computes it, payload parsing, transcript cap, callback threshold, real-conversation
- * outcomes for section 6, retry schedule) and the summary format. Pure.
+ * outcomes for section 6, retry schedule). Pure. The summary itself: alldog-summary-core.test.ts.
  */
 jest.mock("@/lib/prisma", () => ({ __esModule: true, default: {}, prisma: {} }));
 
@@ -19,7 +19,6 @@ import {
   verifyElevenLabsSignature,
   type TranscriptTurn,
 } from "@/lib/alldog/voice-agent/end-rules";
-import { formatVoiceLog, parseVoiceSummary, durationLabel } from "@/lib/alldog/voice-agent/summary";
 
 const SECRET = "wsec_test_123";
 /** The header exactly as ElevenLabs' SDK verifies it: t=<s>,v0=hex(HMAC-SHA256(secret, `${t}.${body}`)). */
@@ -146,6 +145,10 @@ describe("callback task after a call without /book or /details", () => {
     expect(callbackDecision({ ...base, durationSeconds: 6, userWords: true })).toEqual({ open: true });
     expect(callbackDecision({ ...base, durationSeconds: 15, userWords: false })).toEqual({ open: true });
   });
+  it("the summary says the call is not about the caller's dog → no task (supplier, wrong number)", () => {
+    expect(callbackDecision({ outcome: null, phoneNorm: "0501234567", durationSeconds: 90, userWords: true, relevant: false })).toEqual({ open: false, reason: "not_relevant" });
+    expect(callbackDecision({ outcome: null, phoneNorm: "0501234567", durationSeconds: 90, userWords: true, relevant: true })).toEqual({ open: true });
+  });
   it("user words = letters or digits, not blanks / punctuation", () => {
     expect(hasUserWords([{ role: "user", message: "...", t: 1 }, { role: "agent", message: "שלום", t: 0 }])).toBe(false);
     expect(hasUserWords([{ role: "user", message: "כן", t: 1 }])).toBe(true);
@@ -171,36 +174,5 @@ describe("summary retries", () => {
     expect(SUMMARY_MAX_ATTEMPTS).toBe(5);
     expect([1, 2, 3, 4].map((a) => (nextSummaryAttemptAt(a, now)!.getTime() - now.getTime()) / 60000)).toEqual([3, 10, 30, 120]);
     expect(nextSummaryAttemptAt(5, now)).toBeNull();
-  });
-});
-
-describe("summary parsing + the lead journal line", () => {
-  it("'' = not said → null; urgency only low/medium/high", () => {
-    const s = parseVoiceSummary(JSON.stringify({ summary: "דנה מכפר סבא, רקס נובח על אורחים.", dog: "רקס", breed: "", age: "", city: "כפר סבא", problem: "נביחות", urgency: "x", relevant: true, notes: "" }))!;
-    expect(s).toMatchObject({ dog: "רקס", breed: null, age: null, city: "כפר סבא", urgency: null, relevant: true, notes: null });
-    expect(parseVoiceSummary("not json")).toBeNull();
-    expect(parseVoiceSummary(JSON.stringify({ summary: "" }))).toBeNull();
-  });
-
-  it("journal line: header with time + duration, facts, outcome", () => {
-    const text = formatVoiceLog({
-      startedAt: new Date("2026-11-12T08:31:00Z"), durationSeconds: 200, summary: "דנה מכפר סבא, רקס נובח על אורחים.",
-      dog: "רקס", breed: "לברדור", age: "שנתיים", city: "כפר סבא", problem: "נביחות על אורחים", urgency: "medium", notes: null,
-      outcomeLine: "נקבעה שיחה טלפונית עם רחלי ליום ראשון 15/11 בשעה 10:20",
-    });
-    expect(text.split("\n")).toEqual([
-      "[שיחה קולית · אלירן] סיכום שיחה (12/11 10:31 · 3:20 דק׳)",
-      "דנה מכפר סבא, רקס נובח על אורחים.",
-      "כלב: רקס · לברדור · שנתיים",
-      "עיר: כפר סבא",
-      "הבעיה: נביחות על אורחים",
-      "דחיפות: בינונית",
-      "תוצאה: נקבעה שיחה טלפונית עם רחלי ליום ראשון 15/11 בשעה 10:20",
-    ]);
-  });
-
-  it("fallback note appears on the ElevenLabs summary; duration label", () => {
-    expect(formatVoiceLog({ startedAt: null, durationSeconds: null, summary: "x", outcomeLine: "y", fallbackNote: "(סיכום אוטומטי של ElevenLabs)" })).toContain("(סיכום אוטומטי של ElevenLabs)");
-    expect(durationLabel(65)).toBe("1:05 דק׳");
   });
 });

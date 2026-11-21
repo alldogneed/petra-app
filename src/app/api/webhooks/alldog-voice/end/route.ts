@@ -5,7 +5,8 @@
  * ALLDOG_VOICE_WEBHOOK_SECRET — verifyElevenLabsSignature (end-rules.ts, same algorithm as the
  * official SDK). Secret missing → 503 + alert (fail closed). Bad signature → 401 + alert (not retried
  * by ElevenLabs). Optional ALLDOG_VOICE_AGENT_ID: payloads of any other agent are ignored.
- * Stores the call and returns 200 at once; the summary runs from the cron (summary-job.ts).
+ * Stores the call and returns 200 at once. The summary (summary-job.ts) starts 20 seconds later from
+ * this same invocation, after the response; the 5-minute cron is the safety net and does the retries.
  * Other event types (post_call_audio, call_initiation_failure) → 200, ignored.
  * Off (404) unless ALLDOG_VOICE_AGENT_ENABLED. Public route: /api/webhooks/ prefix, auth in-route.
  */
@@ -16,9 +17,19 @@ import { runAfterResponse } from "@/lib/wait-until";
 import { alertAllDogFailure } from "@/lib/alldog/failure-alerts";
 import { parsePostCall, verifyElevenLabsSignature } from "@/lib/alldog/voice-agent/end-rules";
 import { recordCallEnd } from "@/lib/alldog/voice-agent/end";
+import { SUMMARY_FIRST_DELAY_MS } from "@/lib/alldog/voice-agent/end-rules";
+import { processVoiceSummary } from "@/lib/alldog/voice-agent/summary-job";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+// 20 s wait + one Claude call + the alerts, all after the response.
+export const maxDuration = 120;
+
+/** After the response: wait for the tool calls' own background work, then one summary attempt. */
+async function summarizeSoon(id: string): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, SUMMARY_FIRST_DELAY_MS));
+  const r = await processVoiceSummary(id, new Date(), { force: true });
+  console.log(`[alldog-voice end] summary for call ${id}: ${r}`);
+}
 
 export async function POST(request: NextRequest) {
   const businessId = allDogBusinessId();
@@ -53,9 +64,10 @@ export async function POST(request: NextRequest) {
   if (agentId && parsed.agentId !== agentId) return NextResponse.json({ ok: true, ignored: "other_agent" });
 
   try {
-    const { created } = await recordCallEnd(businessId, parsed);
+    const { id, created } = await recordCallEnd(businessId, parsed);
     const last4 = (parsed.callerPhone ?? "").replace(/\D/g, "").slice(-4) || "none";
     console.log(`[alldog-voice end] conv=${parsed.conversationId} caller=…${last4} duration=${parsed.durationSeconds ?? "?"}s turns=${parsed.turns.length} new=${created}`);
+    await runAfterResponse(summarizeSoon(id));
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[alldog-voice end] failed", e instanceof Error ? e.message : e);

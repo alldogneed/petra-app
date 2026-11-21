@@ -82,11 +82,22 @@ export interface VoiceAgentSettings {
   callbackPhone: string;
   /** Racheli's PlatformUser id: bell notification + her Google Calendar. Null = neither. */
   salesRepUserId: string | null;
+  /** Racheli's mobile for the WhatsApp alert on every call Eliran took. Null = no WhatsApp to her. */
+  salesRepPhone: string | null;
   /**
    * The Telnyx number PayCall forwards unanswered calls to (Eliran). No default on purpose (Or): unset →
    * PayCall behaves exactly as before + a daily warning (src/lib/alldog/voice-agent/paycall-guard.ts).
    */
   voiceAgentNumber: string | null;
+}
+
+/**
+ * PayCall × voice agent (Or, 21/11/2026): PayCall's own summary of a call Eliran answered is muted
+ * ONLY when this is on AND the call's destination is the Telnyx number. Off by default — until a
+ * test call confirmed what PayCall reports as the destination, two summaries are better than none.
+ */
+export function isVoicePaycallFilterEnabled(): boolean {
+  return truthy(readEnv("ALLDOG_VOICE_PAYCALL_FILTER_ENABLED"));
 }
 
 export function voiceAgentSettings(): VoiceAgentSettings {
@@ -95,6 +106,7 @@ export function voiceAgentSettings(): VoiceAgentSettings {
     salesRepName: readEnv("ALLDOG_SALES_REP_NAME") || "רחלי",
     callbackPhone: readEnv("ALLDOG_CALLBACK_PHONE") || "03-3818670",
     salesRepUserId: readEnv("ALLDOG_SALES_REP_USER_ID") || null,
+    salesRepPhone: readEnv("ALLDOG_SALES_REP_PHONE") || null,
     voiceAgentNumber: readEnv("ALLDOG_VOICE_AGENT_NUMBER") || null,
   };
 }

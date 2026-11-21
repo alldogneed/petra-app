@@ -16,6 +16,7 @@ export const voiceLeadSchema = z.object({
   problem: text(2000),
   urgent: z.boolean().nullish(),
   urgentReason: text(1000),
+  eventWhen: text(300),
 });
 
 export const voiceBookSchema = voiceLeadSchema.extend({

@@ -3,7 +3,7 @@
  * Used by POST /api/webhooks/alldog-voice/book and /details (src/lib/alldog/voice-agent/booking.ts).
  */
 import type { LeadPetDetails } from "@/lib/lead-pet-notes";
-import { israelInstant, israelParts } from "@/lib/alldog/time";
+import { addDaysYmd, isOfficeOpenAt, israelInstant, israelParts, israelYmd, officeHoursFor, weekdayOfYmd } from "@/lib/alldog/time";
 import {
   SALES_CALL_MINUTES,
   SALES_WINDOWS,
@@ -19,7 +19,7 @@ export const VOICE_LEAD_SOURCE = "טלפון · סוכן קולי";
 /** Racheli's stage after a sales call is booked — found by NAME, never created automatically. */
 export const SALES_CALL_STAGE_NAME = "תואמה שיחת מכירה";
 /** Prefix of the voice agent's lines in the lead journal. */
-export const VOICE_LOG_PREFIX = "[שיחה קולית · אלירן]";
+export const VOICE_LOG_PREFIX = "[שיחת טלפון · אלירן]";
 /** Same task titles as the WhatsApp bot (src/lib/alldog-bot/actions.ts), so an open task from either channel counts. */
 export const CALLBACK_TASK_PREFIX = "לחזור טלפונית";
 export const URGENT_TITLE_PREFIX = "דחוף: ";
@@ -45,6 +45,47 @@ export interface VoiceDetails {
   problem?: string | null;
   urgent?: boolean | null;
   urgentReason?: string | null;
+  /** When the urgent incident happened, in the caller's words ("אתמול בערב"). */
+  eventWhen?: string | null;
+}
+
+/** What Eliran promises: a rep calls back within about half an hour, during office hours. */
+export const CALLBACK_WITHIN_MS = 30 * 60 * 1000;
+
+/**
+ * The "לחזור טלפונית" task's target (Or, 21/11/2026): 30 minutes after the call while the office is
+ * open (Sun–Thu 09:00–17:00, Fri 09:00–14:00, src/lib/alldog/time.ts); outside those hours, the
+ * opening of the next office day. Holidays are not known here. Pure — tested.
+ */
+export function callbackDueAt(callAt: Date): Date {
+  if (isOfficeOpenAt(callAt)) return new Date(callAt.getTime() + CALLBACK_WITHIN_MS);
+  const today = israelYmd(callAt);
+  for (let i = 0; i <= 8; i++) {
+    const ymd = addDaysYmd(today, i);
+    const hours = officeHoursFor(weekdayOfYmd(ymd));
+    if (!hours) continue;
+    const open = israelInstant(ymd, hours.open);
+    if (open.getTime() > callAt.getTime()) return open;
+  }
+  return new Date(callAt.getTime() + CALLBACK_WITHIN_MS);
+}
+
+/** "היום עד 10:19" / "יום ראשון 22/11 ב-09:00" — for the task and the rep's alert. Pure. */
+export function callbackDueLabel(due: Date, now: Date): string {
+  const d = israelParts(due);
+  if (d.ymd === israelYmd(now)) return `היום עד ${d.hhmm}`;
+  const [, m, day] = d.ymd.split("-");
+  const names = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+  return `יום ${names[d.weekday]} ${Number(day)}/${Number(m)} ב-${d.hhmm}`;
+}
+
+/**
+ * The first name only — all the voice agent may say back to a caller recognized by number
+ * (identification by caller id is not verification). Null for a placeholder / a name with digits.
+ */
+export function firstNameOf(name: string | null | undefined): string | null {
+  const first = (name ?? "").trim().split(/\s+/)[0]?.replace(/[^\p{L}'׳"״-]/gu, "") ?? "";
+  return first.length >= 2 && first.length <= 30 ? first : null;
 }
 
 export type SlotCheck =
@@ -135,6 +176,7 @@ export function salesBriefFromDetails(d: VoiceDetails): Record<string, string | 
     problem: clean(d.problem, 500),
     urgency: d.urgent ? "high" : null,
     notes: d.urgent ? clean(d.urgentReason, 500) : null,
+    eventWhen: clean(d.eventWhen, 150),
   };
 }
 

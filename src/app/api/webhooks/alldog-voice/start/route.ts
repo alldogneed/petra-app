@@ -2,7 +2,7 @@
  * AllDog voice agent ("אלירן", ElevenLabs) — call start. The agent calls this once when it picks up.
  *
  * POST { conversationId, callerPhone?, externalCallId? }
- *   → { known, isCustomer, returning, name, dogName, stage, upcomingMeeting, whatsappSummary, slots[6] }
+ *   → { known, isCustomer, firstName, dogName, city, upcomingMeeting }
  *
  * Auth: Authorization: Bearer <ALLDOG_VOICE_AGENT_SECRET> (src/lib/alldog/voice-agent/auth.ts).
  * Off (404) unless ALLDOG_VOICE_AGENT_ENABLED + ALLDOG_BUSINESS_ID + the secret are set.
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const last4 = (parsed.data.callerPhone ?? "").replace(/\D/g, "").slice(-4) || "none";
     console.log(
       `[alldog-voice start] conv=${parsed.data.conversationId} caller=…${last4} known=${result.known} ` +
-        `slots=${result.slots.length} round1=${timings.round1Ms}ms round2=${timings.round2Ms}ms total=${timings.totalMs}ms`
+        `round1=${timings.round1Ms}ms round2=${timings.round2Ms}ms total=${timings.totalMs}ms`
     );
     return NextResponse.json(result, {
       headers: { "Server-Timing": `db1;dur=${timings.round1Ms}, db2;dur=${timings.round2Ms}, total;dur=${timings.totalMs}` },

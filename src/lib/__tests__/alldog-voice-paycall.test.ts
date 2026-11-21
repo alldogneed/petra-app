@@ -26,7 +26,7 @@ import {
 import { missedCallSendAt, missedCallVoiceCheck, skipPaycallSummaryForVoiceAgent } from "@/lib/alldog/voice-agent/paycall-guard";
 import { SKIP_REASON_LABELS } from "@/lib/alldog/missed-call-rules";
 
-const ENV = ["ALLDOG_BUSINESS_ID", "PAYCALL_BUSINESS_ID", "ALLDOG_VOICE_AGENT_ENABLED", "ALLDOG_VOICE_AGENT_SECRET", "ALLDOG_VOICE_AGENT_NUMBER"] as const;
+const ENV = ["ALLDOG_BUSINESS_ID", "PAYCALL_BUSINESS_ID", "ALLDOG_VOICE_AGENT_ENABLED", "ALLDOG_VOICE_AGENT_SECRET", "ALLDOG_VOICE_AGENT_NUMBER", "ALLDOG_VOICE_PAYCALL_FILTER_ENABLED"] as const;
 const saved: Record<string, string | undefined> = {};
 beforeAll(() => ENV.forEach((k) => (saved[k] = process.env[k])));
 afterAll(() => ENV.forEach((k) => (saved[k] === undefined ? delete process.env[k] : (process.env[k] = saved[k]))));
@@ -123,14 +123,29 @@ describe("answered-call summaries: skip the calls Eliran answered", () => {
     expect(await skipPaycallSummaryForVoiceAgent(eliranCall, "webhook", 120)).toBe(false);
     expect(console.log).not.toHaveBeenCalled();
   });
-  it("flag on: CALLEE = Telnyx → skipped; a rep's call → summarized as usual; both logged", async () => {
+  it("filter switch OFF (default): a call to Eliran is NOT muted — two summaries are better than none; the line says it would be", async () => {
     flagOn();
+    expect(await skipPaycallSummaryForVoiceAgent(eliranCall, "webhook", 120)).toBe(false);
+    const line = String((console.log as jest.Mock).mock.calls[0][0]);
+    expect(line).toContain("voiceAgentLeg=true");
+    expect(line).toContain("summary=normal(filter-off,would-skip)");
+  });
+  it("filter switch ON: CALLEE = Telnyx → skipped; a rep's call → summarized as usual; both logged", async () => {
+    flagOn();
+    process.env.ALLDOG_VOICE_PAYCALL_FILTER_ENABLED = "true";
     expect(await skipPaycallSummaryForVoiceAgent(eliranCall, "webhook", 120)).toBe(true);
     expect(await skipPaycallSummaryForVoiceAgent(repCall, "webhook", 120)).toBe(false);
     const lines = (console.log as jest.Mock).mock.calls.map((c) => String(c[0]));
     expect(lines[0]).toContain("voiceAgentLeg=true");
     expect(lines[0]).toContain("summary=skipped(voice-agent)");
     expect(lines[1]).toContain("summary=normal");
+  });
+  it("filter switch ON but the destination is missing / does not match → never muted", async () => {
+    flagOn();
+    process.env.ALLDOG_VOICE_PAYCALL_FILTER_ENABLED = "true";
+    expect(await skipPaycallSummaryForVoiceAgent({ ...eliranCall, CALLEE: "" }, "webhook", 120)).toBe(false);
+    expect(await skipPaycallSummaryForVoiceAgent({ ...eliranCall, CALLEE: null }, "webhook", 120)).toBe(false);
+    expect(await skipPaycallSummaryForVoiceAgent({ ...eliranCall, CALLEE: "033818670" }, "webhook", 120)).toBe(false);
   });
   it("flag on but ALLDOG_VOICE_AGENT_NUMBER not set → not filtered (as before) + warning + daily alert", async () => {
     flagOn(null);
@@ -141,6 +156,7 @@ describe("answered-call summaries: skip the calls Eliran answered", () => {
   });
   it("sync: the line is logged once per call (claimOnce), the skip decision every time", async () => {
     flagOn();
+    process.env.ALLDOG_VOICE_PAYCALL_FILTER_ENABLED = "true";
     claim.mockResolvedValueOnce(false);
     expect(await skipPaycallSummaryForVoiceAgent(eliranCall, "sync", 120)).toBe(true);
     expect(console.log).not.toHaveBeenCalled();

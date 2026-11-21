@@ -125,7 +125,8 @@ describe("collected details", () => {
   });
   it("salesBrief keeps everything Eliran heard, urgency only when urgent", () => {
     expect(salesBriefFromDetails({ dogName: "רקס", city: "כפר סבא", urgent: true, urgentReason: "נשך את הילד" }))
-      .toEqual({ dog: "רקס", breed: null, age: null, city: "כפר סבא", problem: null, urgency: "high", notes: "נשך את הילד" });
+      .toEqual({ dog: "רקס", breed: null, age: null, city: "כפר סבא", problem: null, urgency: "high", notes: "נשך את הילד", eventWhen: null });
+    expect(salesBriefFromDetails({ urgent: true, eventWhen: " אתמול  בערב " }).eventWhen).toBe("אתמול בערב");
     expect(salesBriefFromDetails({}).urgency).toBeNull();
   });
   it("lead source in the bot's pattern", () => {

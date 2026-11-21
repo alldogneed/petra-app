@@ -13,6 +13,7 @@ export const WHATSAPP_CONTEXT_LABELS: Record<string, string> = {
   lead_meeting_reminder: "תזכורת לפגישת ליד",
   sales_call_confirmation: "אישור שיחת מכירה טלפונית",
   sales_call_reminder: "תזכורת לשיחת מכירה טלפונית",
+  voice_rep_alert: "התראה לנציגה על שיחה עם אלירן",
   boarding_checkout: "יציאה מפנסיון",
   boarding_thank_you: "תודה אחרי פנסיון",
   payment_request: "בקשת תשלום",
@@ -45,6 +46,7 @@ export const WHATSAPP_CONTEXT_LABELS: Record<string, string> = {
 /** Messages to the business owner / the user themselves — a failure there is not a customer issue. */
 const NON_CUSTOMER_CONTEXTS = new Set([
   "lead_alert",
+  "voice_rep_alert",
   "security_alert",
   "booking_owner_alert",
   "contract_signed",
