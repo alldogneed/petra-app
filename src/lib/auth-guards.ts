@@ -19,6 +19,7 @@ import {
   type PlatformRole,
   type TenantRole,
   type SessionMembership,
+  isVolunteerWriteBlocked,
 } from "./permissions";
 
 export { type FullSession };
@@ -323,6 +324,10 @@ export async function requireBusinessAuth(
       { error: "No active business membership" },
       { status: 403 }
     );
+  }
+
+  if (isVolunteerWriteBlocked(membership.role, membership.permissionOverrides, request.method, requestPath(request))) {
+    return NextResponse.json({ error: "אין לך הרשאה לפעולה זו" }, { status: 403 });
   }
 
   // Check if the business is suspended/closed + auto-downgrade expired subscriptions
