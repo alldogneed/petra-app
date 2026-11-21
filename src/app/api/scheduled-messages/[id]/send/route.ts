@@ -73,6 +73,7 @@ export async function POST(
       fallbackBody: body,
       businessId: msg.businessId,
       context,
+      templateOnly: payload.templateOnly === true,
     });
 
     await prisma.scheduledMessage.update({

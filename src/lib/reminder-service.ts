@@ -7,7 +7,8 @@ import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { customerContactPhoneOf, DEFAULT_MEETING_LABEL } from "@/lib/business-contact";
 import { buildTemplateChain, type TemplateStep } from "@/lib/whatsapp-template-chain";
-import { LEAD_MEETING_ENTITY, LEAD_MEETING_REMINDER_HOURS } from "@/lib/lead-meetings";
+import { LEAD_MEETING_ENTITY, LEAD_MEETING_REMINDER_HOURS, SALES_CALL_REMINDER_HOURS, isSalesCallMeeting } from "@/lib/lead-meetings";
+import { voiceAgentActiveFor } from "@/lib/alldog/config";
 
 // ─── Meta template chains ────────────────────────────────────────────────────
 //
@@ -44,6 +45,10 @@ export const META_TEMPLATES = {
   /** "generic" vertical twins of appointmentReminder / appointmentConfirmation (same params as v2) — adaptChainForVertical() */
   genericMeetingReminder: ["petra_meeting_reminder"],
   genericMeetingConfirmation: ["petra_meeting_confirmation"],
+  /** Voice-agent phone sales call (catalog): confirmation {{1}} business · {{2}} rep · {{3}} date · {{4}} time · {{5}} phone */
+  salesCallConfirmation: ["petra_sales_call_confirmation"],
+  /** reminder {{1}} business · {{2}} when ("היום בשעה 10:20") · {{3}} rep · {{4}} phone */
+  salesCallReminder: ["petra_sales_call_reminder"],
 } as const;
 
 const single = (name: string, params: string[]): TemplateStep[] => buildTemplateChain([{ name, params }]);
@@ -97,6 +102,48 @@ export function appointmentConfirmationChain(p: { customerName: string; date: st
   return buildTemplateChain([
     { name: v2, params: [p.customerName, p.date, p.time, p.serviceName, p.businessPhone] },
     { name: legacy, params: [p.customerName, p.date, p.time, p.serviceName] },
+  ]);
+}
+
+export interface SalesCallMessageInput {
+  businessName: string;
+  repName: string;
+  /** Customer first name for the older appointment templates; "" drops those steps (no wrong / placeholder name). */
+  customerName: string;
+  date: string;     // "יום ראשון 15/11"
+  time: string;     // "10:20"
+  /** Spoken "when" for the reminder: "היום בשעה 10:20". */
+  when: string;
+  phone: string;
+}
+
+/** "שיחה טלפונית עם רחלי מ-AllDog" — {{4}} of the older appointment templates. */
+export function salesCallServiceLabel(p: { repName: string; businessName: string }): string {
+  return `שיחה טלפונית עם ${p.repName} מ-${p.businessName}`;
+}
+
+/**
+ * Sales-call confirmation: the new neutral template first, then the approved appointment-confirmation
+ * templates with the service "שיחה טלפונית עם <rep> מ-<business>" (rule #26 — prepend, never replace).
+ */
+export function salesCallConfirmationChain(p: SalesCallMessageInput): TemplateStep[] {
+  const service = salesCallServiceLabel(p);
+  const [v2, legacy] = META_TEMPLATES.appointmentConfirmation;
+  return buildTemplateChain([
+    { name: META_TEMPLATES.salesCallConfirmation[0], params: [p.businessName, p.repName, p.date, p.time, p.phone] },
+    { name: v2, params: [p.customerName, p.date, p.time, service, p.phone] },
+    { name: legacy, params: [p.customerName, p.date, p.time, service] },
+  ]);
+}
+
+/** Sales-call reminder: the new neutral template first, then the approved appointment-reminder templates. */
+export function salesCallReminderChain(p: SalesCallMessageInput): TemplateStep[] {
+  const service = salesCallServiceLabel(p);
+  const [v2, legacy] = META_TEMPLATES.appointmentReminder;
+  return buildTemplateChain([
+    { name: META_TEMPLATES.salesCallReminder[0], params: [p.businessName, p.when, p.repName, p.phone] },
+    { name: v2, params: [p.customerName, p.date, p.time, service, p.phone] },
+    { name: legacy, params: [p.customerName, p.date, p.time, service] },
   ]);
 }
 
@@ -602,15 +649,37 @@ export async function scheduleLeadMeetingReminder(meeting: LeadMeetingForReminde
     include: { template: { select: { body: true } }, business: { select: { phone: true, customerContactPhone: true } } },
   });
 
+  // A voice-agent phone sales call: 2 hours before, its own template chain, templates only — ONLY for
+  // AllDog with the voice-agent flag on. Any other business with the same location: unchanged.
+  const salesCall = isSalesCallMeeting(meeting) && voiceAgentActiveFor(meeting.businessId);
+
   const meetingAt = israelDateTime(meeting.date, meeting.startTime);
-  const offsetHours = rule?.triggerOffset ?? LEAD_MEETING_REMINDER_HOURS;
+  const offsetHours = salesCall ? SALES_CALL_REMINDER_HOURS : rule?.triggerOffset ?? LEAD_MEETING_REMINDER_HOURS;
   const sendAt = new Date(meetingAt.getTime() - offsetHours * 60 * 60 * 1000);
-  if (sendAt <= new Date()) return null;
+  if (sendAt <= new Date()) return null; // booked closer than the lead time → no reminder
 
   const existing = await prisma.scheduledMessage.findFirst({
     where: { relatedEntityType: LEAD_MEETING_ENTITY, relatedEntityId: meeting.id, status: "PENDING" },
   });
   if (existing) return null;
+
+  if (salesCall) {
+    const { salesCallReminderMessage, SALES_CALL_REMINDER_FLOW } = await import("@/lib/alldog/voice-agent/messages");
+    const m = salesCallReminderMessage({ date: meeting.date, startTime: meeting.startTime, leadName: meeting.lead.name }, sendAt);
+    return prisma.scheduledMessage.create({
+      data: {
+        businessId: meeting.businessId,
+        customerId: null,
+        channel: "whatsapp",
+        templateKey: "sales_call_reminder_2h",
+        payloadJson: JSON.stringify({ body: m.body, to, flow: SALES_CALL_REMINDER_FLOW, templateChain: m.templateChain, templateOnly: true }),
+        sendAt,
+        status: "PENDING",
+        relatedEntityType: LEAD_MEETING_ENTITY,
+        relatedEntityId: meeting.id,
+      },
+    });
+  }
 
   const formattedDate = new Intl.DateTimeFormat("he-IL", {
     weekday: "long",

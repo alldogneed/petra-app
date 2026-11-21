@@ -104,6 +104,27 @@ export const PETRA_TEMPLATE_CATALOG: readonly CatalogTemplate[] = [
     footer: FOOTER,
     params: ["customer name", "date", "time", "service", "business phone"],
   },
+  // ── Phone sales call booked by a voice agent (AllDog "אלירן", src/lib/alldog/voice-agent) ──
+  // Business name and rep name are variables so the template stays business-neutral (Or, 12/11/2026).
+  // No customer name on purpose: names heard on a call are often transcribed wrong.
+  {
+    name: "petra_sales_call_confirmation",
+    category: "UTILITY",
+    language: "he",
+    body: "שלום, תודה שפנית ל-{{1}}. קבענו לך שיחה טלפונית עם {{2}} מהצוות שלנו ל{{3}} בשעה {{4}}. השיחה תהיה למספר הזה. אם צריך לשנות את המועד, אפשר להשיב להודעה הזו או להתקשר ל-{{5}}. נשמח לעזור!",
+    examples: ["AllDog", "רחלי", "יום ראשון 15/11", "10:20", "03-3818670"],
+    footer: FOOTER,
+    params: ["business name", "sales rep name", "date", "time", "business phone"],
+  },
+  {
+    name: "petra_sales_call_reminder",
+    category: "UTILITY",
+    language: "he",
+    body: "שלום, תזכורת מ-{{1}}: {{2}} מתקיימת השיחה הטלפונית שקבענו עם {{3}}. אם הזמן כבר לא מתאים, אפשר להשיב להודעה הזו או להתקשר ל-{{4}}. נשמח לעזור!",
+    examples: ["AllDog", "היום בשעה 10:20", "רחלי", "03-3818670"],
+    footer: FOOTER,
+    params: ["business name", "when (spoken: היום בשעה 10:20)", "sales rep name", "business phone"],
+  },
   // ── Alerts to the platform owner (Or), sent by notify-owner.ts ─────────────
   // Before these, every owner alert reused petra_owner_alert, whose fixed text is the
   // NEW-USER message ("נרשם משתמש חדש לפטרה") — bot handoffs and support tickets showed

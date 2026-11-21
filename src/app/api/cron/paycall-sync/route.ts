@@ -7,6 +7,7 @@ import { verifyCronAuth, verifyCronAuthWithVault } from "@/lib/cron-auth";
 import { probeAnalyticsCallsShape, getCalls, isMissedCall, processMissedCall, MIN_SUMMARY_BILLSEC, type PaycallCall } from "@/lib/paycall";
 import { isCallSummariesEnabled } from "@/lib/alldog/config";
 import { repFromPaycall } from "@/lib/alldog/call-coaching";
+import { skipPaycallSummaryForVoiceAgent } from "@/lib/alldog/voice-agent/paycall-guard";
 
 /**
  * GET /api/cron/paycall-sync
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Answered calls (AllDog summaries) ──
-    const answeredStats = { candidates: 0, logged: 0, duplicate: 0, deferred: 0, notReached: 0 };
+    const answeredStats = { candidates: 0, logged: 0, duplicate: 0, deferred: 0, notReached: 0, voiceAgent: 0 };
     let analyticsShape: string | null = null;
     if (summaries) {
       analyticsShape = await probeAnalyticsCallsShape({ fromDate, toDate: now });
@@ -81,6 +82,11 @@ export async function GET(request: NextRequest) {
             continue;
           }
           try {
+            // Voice agent (section 6, only while active): answered by Eliran → not summarized here.
+            if (await skipPaycallSummaryForVoiceAgent(call, "sync", billsecOf(call))) {
+              answeredStats.voiceAgent++;
+              continue;
+            }
             // Already in the retry queue (the webhook saw it) → the queue owns it.
             if (await isQueued(call.ID)) {
               answeredStats.duplicate++;

@@ -155,7 +155,7 @@ function CompliancePageContent() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 border-b pb-0">
+      <div className="flex gap-2 border-b pb-0 overflow-x-auto">
         {filterTabs.map((tab) => (
           <button
             key={tab.id}
