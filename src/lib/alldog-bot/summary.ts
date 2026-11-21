@@ -17,6 +17,7 @@ import { israelParts } from "@/lib/alldog/time";
 import { createDbExecutor, updateConversationLog, type BotConversationRef } from "@/lib/alldog-bot/actions";
 import { currentSession, customerWords, parseImageMessageText, seemsMinor } from "@/lib/alldog-bot/logic";
 import { MINOR_FACT, withBody, withFact } from "@/lib/alldog-bot/journal";
+import { withControlLines } from "@/lib/alldog-bot/reply-hygiene";
 import { alertAllDogFailure } from "@/lib/alldog/failure-alerts";
 
 const LOG = "[alldog-bot:summary]";
@@ -122,7 +123,9 @@ export async function summarizeBotConversationDetailed(
       .slice(-12000);
     const sum = await summarizeConversation("whatsapp", transcript);
     if (!sum) return fail("Claude לא החזיר סיכום תקין");
-    const text = [formatBotSummary(sum, dateLabel(last.createdAt)), ...imageSummaryLines(rows)].join("\n");
+    // Item 44 (Or: "בקרה על מה הלקוח אמר"): the classification on top + the customer's own words.
+    const said = rows.filter((r) => r.role === "user").map((r) => customerWords(r)).filter((t): t is string => !!t);
+    const text = [withControlLines(formatBotSummary(sum, dateLabel(last.createdAt)), said), ...imageSummaryLines(rows)].join("\n");
 
     // The lead (the same one the bot writes to — created if missing, e.g. after a manual delete).
     const ref: BotConversationRef = { ...conv };

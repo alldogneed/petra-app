@@ -2,7 +2,7 @@
  * AllDog WhatsApp bot — pure rules (no DB, no network). Unit-tested in
  * src/lib/__tests__/alldog-bot.test.ts.
  */
-import { dropMetaNarration } from "@/lib/alldog-bot/reply-hygiene";
+import { dropMetaNarration, practicalStyle } from "@/lib/alldog-bot/reply-hygiene";
 
 // ─── Inbound message classification ──────────────────────────────────────────
 
@@ -700,6 +700,8 @@ export interface GuardContext {
   known?: KnownFacts;
   /** Item 41: the customer asked about prices in THIS batch → money sentences are never trimmed. */
   priceAskedNow?: boolean;
+  /** Item 44: a safety case (bite, a child at risk) — the serious sentence and the safety tip stay. */
+  safety?: boolean;
 }
 
 /**
@@ -853,6 +855,8 @@ export function applyConversationGuards(reply: string, priorBotTexts: string[], 
   const linkSent = priorBotTexts.some((t) => GUIDE_LINK_RE.test(t));
   const firstReply = priorBotTexts.length === 0;
 
+  // Item 44: practical — no empathy lines, no unasked tips, few emoji (a safety case is left as written).
+  reply = practicalStyle(reply, { safety: ctx.safety, priorBotTexts });
   const lines = enforceSalesPolicy(trimRepeats(removeInventedFamiliarity(reply), priorBotTexts, userTexts, { priceAskedNow: ctx.priceAskedNow })).split("\n").map((raw) => {
     let line = raw.trim();
     if (!line) return raw;

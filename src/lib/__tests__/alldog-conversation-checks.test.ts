@@ -42,10 +42,10 @@ describe("b. compliments and invented familiarity", () => {
 
 describe("c + d. grouped questions, professional depth (prompt)", () => {
   it("rules are in the prompt", () => {
-    expect(ALLDOG_BOT_PROMPT).toContain("עומק מקצועי לפני הסגירה");
-    expect(ALLDOG_BOT_PROMPT).toContain("לכל היותר 7 שאלות");
-    expect(ALLDOG_BOT_PROMPT).toContain("חרדת נטישה: מה קורה כשהוא לבד");
-    expect(ALLDOG_BOT_PROMPT).toContain("תוקפנות: כלפי מי, ובאיזה מצב");
+    // Item 44 (Or, 21/11): no trainer questions in the chat — one clarifying question at most, ≤ 5 questions.
+    expect(ALLDOG_BOT_PROMPT).toContain('אין "עומק מקצועי" בצ\'אט');
+    expect(ALLDOG_BOT_PROMPT).toContain("לכל היותר 5 שאלות");
+    expect(ALLDOG_BOT_PROMPT).toContain("שאלת הבהרה אחת, לא יותר");
   });
 });
 
@@ -90,7 +90,7 @@ describe("h. conversation check (simulator)", () => {
     expect(r.professionalQuestions).toBe(0);
     expect(r.identityLines).toBe(1);
     expect(r.repeatedMessages).toBe(1);
-    expect(r.problems).toHaveLength(4);
+    expect(r.problems).toHaveLength(3); // item 44: a missing trainer question is no longer a problem
   });
 
   it("an identity line in answer to 'are you human?' is fine", () => {

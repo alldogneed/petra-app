@@ -200,7 +200,11 @@ const REP_MET_RE =
   /(?:כבר\s+)?קבענו|קבעתי\s+(?:איתה|איתו|אבחון|פגישה|מפגש)|נקבע(?:ה)?\s+(?:לנו\s+|לי\s+)?(?:פגישה|אבחון|מפגש)|יש\s+(?:לנו|לי)\s+(?:כבר\s+)?(?:פגישה|אבחון|מפגש)\s+(?:קבוע|קבועה|ב|מחר|ביום)/u;
 const REP_TALKING_RE = new RegExp(
   [
-    `(?:כבר\\s+)?(?:מדברים|מדברת|מדבר|דיברו|דיברתי|דיברנו|דיברה)\\s+(?:איתי|איתנו|איתה|איתו|עם\\s+(?:ה)?נציגה)`,
+    // Item 44 (עדי 19/11: "יכול לנבוח אם גבר זר מדבר איתי ברחוב" was read as "with a rep"): the present
+    // tense with "איתי" needs "כבר" or the rep as its subject; the past tense stays as it was.
+    `(?:כבר\\s+)?(?:דיברו|דיברתי|דיברנו|דיברה)\\s+(?:איתי|איתנו|איתה|איתו|עם\\s+(?:ה)?נציגה)`,
+    `(?:כבר\\s+|(?:ה)?נציגה\\s+|היא\\s+|מישהי\\s+(?:מכם\\s+)?)(?:כבר\\s+)?(?:מדברים|מדברת|מדבר)\\s+(?:איתי|איתנו)`,
+    `(?:אני|אנחנו)\\s+(?:כבר\\s+)?(?:מדברים|מדברת|מדבר)\\s+(?:איתה|עם\\s+(?:ה)?נציגה)`,
     `(?:היא|הנציגה|מישהי|מישהו|הוא|נציגה)\\s+(?:כבר\\s+)?(?:התקשרה|התקשר|חזרה|חזר|דיברה)(?:\\s+(?:אליי|אלי|אלינו|איתי))?`,
     `אני\\s+(?:איתה|איתו|עם\\s+(?:ה)?נציגה)\\s+(?:ב|על\\s+ה)?(?:טלפון|קו)`,
     `(?<![\\p{L}])(?:חזרו|התקשרו)\\s+(?:אליי|אלי|אלינו)`,
@@ -218,6 +222,8 @@ export function repCallbackMissed(raw: string): boolean {
 export function alreadyWithRep(raw: string): "talking" | "met" | null {
   const t = clean(raw);
   if (!t || repCallbackMissed(t) || NEGATED_CONTACT_RE.test(t) || WISH_CONTACT_RE.test(t)) return null;
+  // Item 44: a description of the dog ("נובח כשמישהו מדבר איתי") is never "already with a rep".
+  if (/(?:נובח|נובחת|נביחות|קופץ|קופצת|תוקף|תוקפת|מתנפל|נוהם|מגרגר)[^.?!]{0,60}(?:מדבר|מדברת|מדברים|מתקרב)/u.test(t)) return null;
   const talking = REP_TALKING_RE.test(t);
   if (REP_MET_RE.test(t) && (talking || /קבענו|קבעתי|נקבע/u.test(t))) return "met";
   return talking ? "talking" : null;
@@ -268,8 +274,9 @@ export const PRICE_ANSWER_LINE =
 /**
  * Plain boarding (a stay, no training) — Or, 6/11: about 120–140 ₪ a day, depending on the place
  * that takes the dog; the rep comes back with exact prices. Training in boarding stays "לפי אבחון".
+ * Or, 19/11: minimum stay = 2 days (Perach asked Friday → Saturday evening and was promised a match).
  */
-export const BOARDING_PRICE_LINE = "פנסיון רגיל (בלי אילוף): בערך 120 עד 140 ₪ ליום, תלוי במקום שיקבל אתכם. הנציגה תחזור עם מחירים מסודרים.";
+export const BOARDING_PRICE_LINE = "פנסיון רגיל (בלי אילוף): בערך 120 עד 140 ₪ ליום, מינימום יומיים, תלוי במקום שיקבל אתכם. הנציגה תחזור עם מחירים מסודרים.";
 
 /** The reply to a price question must carry the diagnosis price — else the short answer opens it. Pure — tested. */
 export function enforcePriceAnswer(reply: string): string {

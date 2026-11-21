@@ -108,7 +108,7 @@ export const PRICE_FULL: Record<Exclude<BotLang, "he">, string> = {
     "• Phone consultation: free",
     "• Home assessment: 350 ₪, deducted if you continue with training",
     "• Private lessons: 350 ₪ for a single session, or 300 ₪ per session in a package of at least 6",
-    "• Boarding: about 120 to 140 ₪ a day, depending on the place that takes the dog. The representative will get back to you with exact prices",
+    "• Boarding: about 120 to 140 ₪ a day, minimum 2 days, depending on the place that takes the dog. The representative will get back to you with exact prices",
     "• Intensive training and training in boarding: priced after the assessment, installments possible",
   ].join("\n"),
   ru: [
@@ -116,7 +116,7 @@ export const PRICE_FULL: Record<Exclude<BotLang, "he">, string> = {
     "• Консультация по телефону: бесплатно",
     "• Диагностика дома: 350 ₪, засчитывается, если продолжаете обучение",
     "• Частные уроки: 350 ₪ за одно занятие или 300 ₪ за занятие в пакете от 6 занятий",
-    "• Передержка: примерно 120 до 140 ₪ в день, зависит от места. Представитель вернётся к вам с точными ценами",
+    "• Передержка: примерно 120 до 140 ₪ в день, минимум 2 дня, зависит от места. Представитель вернётся к вам с точными ценами",
     "• Интенсивное обучение и обучение на передержке: по итогам диагностики, можно в рассрочку",
   ].join("\n"),
   fr: [
@@ -124,7 +124,7 @@ export const PRICE_FULL: Record<Exclude<BotLang, "he">, string> = {
     "• Consultation téléphonique : gratuite",
     "• Diagnostic à domicile : 350 ₪, déduits si vous continuez le dressage",
     "• Cours particuliers : 350 ₪ la séance, ou 300 ₪ la séance dans un forfait d'au moins 6",
-    "• Pension : environ 120 à 140 ₪ par jour, selon l'endroit qui accueille le chien. La conseillère vous rappellera avec les prix exacts",
+    "• Pension : environ 120 à 140 ₪ par jour, minimum 2 jours, selon l'endroit qui accueille le chien. La conseillère vous rappellera avec les prix exacts",
     "• Dressage intensif et dressage en pension : selon le diagnostic, paiement en plusieurs fois possible",
   ].join("\n"),
   ar: [
@@ -132,7 +132,7 @@ export const PRICE_FULL: Record<Exclude<BotLang, "he">, string> = {
     "• استشارة هاتفية: مجانًا",
     "• تشخيص في البيت: 350 ₪، تُخصم إذا استمريتم بالتدريب",
     "• دروس خاصة: 350 ₪ للجلسة الواحدة، أو 300 ₪ للجلسة ضمن رزمة من 6 جلسات على الأقل",
-    "• فندقة (بنسيون): حوالي 120 إلى 140 ₪ لليوم، حسب المكان الذي يستقبل الكلب. الممثلة ستعود إليكم بأسعار دقيقة",
+    "• فندقة (بنسيون): حوالي 120 إلى 140 ₪ لليوم، يومان على الأقل، حسب المكان الذي يستقبل الكلب. الممثلة ستعود إليكم بأسعار دقيقة",
     "• تدريب مكثف وتدريب في البنسيون: حسب التشخيص، ويمكن التقسيط",
   ].join("\n"),
 };

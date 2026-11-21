@@ -8,6 +8,7 @@ import { FULL_PRICE_LIST, priceAnswer } from "@/lib/alldog-bot/reply-rules";
 import { isKnownServiceCity, unknownAreaLine } from "@/lib/alldog-bot/areas";
 import { EITHER_QUESTION_ANSWER, EN_IDENTITY_ANSWER, enforceIdentityAnswer, identityAnswerFor } from "@/lib/alldog-bot/prompt";
 import { dropLimitationLines } from "@/lib/alldog-bot/logic";
+import { PRICE_FULL } from "@/lib/alldog-bot/language";
 
 describe("1. the model's notes to itself never reach the customer", () => {
   it("Michelle 6/11", () => {
@@ -98,5 +99,13 @@ describe("8. identity: 'real person or ai?' gets a clear answer", () => {
   it("the answer survives the limitation filter", () => {
     expect(dropLimitationLines(enforceIdentityAnswer("real person or ai?", "No, I'm a human"))).toContain("administrative assistant");
     expect(dropLimitationLines(enforceIdentityAnswer("אתה בן אדם או בוט?", "לא"))).toContain("העוזר המנהלתי");
+  });
+});
+
+describe("9. plain boarding: minimum 2 days (Or, 19/11)", () => {
+  it("the boarding line and every foreign list say so, and the policy guard still allows the range", () => {
+    expect(BOARDING_PRICE_LINE).toContain("מינימום יומיים");
+    expect(findPolicyIssues(BOARDING_PRICE_LINE)).toEqual([]);
+    for (const lang of ["en", "ru", "fr", "ar"] as const) expect(PRICE_FULL[lang]).toMatch(/minimum|минимум|على الأقل/i);
   });
 });
