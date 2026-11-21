@@ -383,6 +383,17 @@ describe("two calls from the same number", () => {
     expect(sent.newLead[0].opts).toEqual({ skipBellUserIds: ["user-racheli"] });
     expect(new Set(db.calls.map((c) => c.leadId)).size).toBe(1);
   });
+  it("a second call that is urgent → the same task becomes URGENT and its description opens with the reason", async () => {
+    await detailsPOST(tool("details", { conversationId: "conv-1", callerPhone: "+972541110001", problem: "עושה צרכים בבית" }));
+    await settle();
+    await detailsPOST(tool("details", { conversationId: "conv-2", callerPhone: "+972541110001", urgent: true, urgentReason: "נשך אורח", eventWhen: "לפני שעתיים" }));
+    await settle();
+    expect(db.tasks).toHaveLength(1);
+    expect(db.tasks[0]).toMatchObject({ priority: "URGENT" });
+    const description = String(db.tasks[0].description);
+    expect(description.startsWith("דחוף: נשך אורח · מתי: לפני שעתיים\n")).toBe(true);
+    expect(description).toContain("עושה צרכים בבית"); // what the first call wrote stays
+  });
   it("the same tool call repeated (same conversation) → still one lead, one task, one journal line", async () => {
     const body = { conversationId: "conv-1", callerPhone: "+972541110001", fullName: "דנה" };
     await detailsPOST(tool("details", body));
