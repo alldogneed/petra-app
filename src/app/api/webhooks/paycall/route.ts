@@ -20,6 +20,13 @@ import { repFromPaycall } from "@/lib/alldog/call-coaching";
 import { runAfterResponse } from "@/lib/wait-until";
 import { isCallSummariesEnabled } from "@/lib/alldog/config";
 import { readEnv } from "@/lib/read-env";
+import {
+  logLiveLinkKeysOnce,
+  logMissedCallForVoiceAgent,
+  skipPaycallSummaryForVoiceAgent,
+  voiceGuardActive,
+} from "@/lib/alldog/voice-agent/paycall-guard";
+import { missedCallWriteLabel } from "@/lib/alldog/voice-agent/paycall-rules";
 
 /**
  * GET /api/webhooks/paycall
@@ -56,6 +63,8 @@ export async function GET(request: NextRequest) {
   }
 
   const live = parseLiveLinkParams(request.nextUrl.searchParams);
+  // Voice agent (section 6, only while active): once a day, which parameter NAMES PayCall sends.
+  await logLiveLinkKeysOnce(Array.from(request.nextUrl.searchParams.keys()));
   const status = live.status;
   const callId = live.callId;
   const disposition = live.disposition;
@@ -109,6 +118,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await processMissedCall(call);
+    await logMissedCallForVoiceAgent(call, missedCallWriteLabel(result));
     console.log(`[paycall webhook] missed call ${callId}: ${result.skipped ? "skipped" : result.customerId ? "existing customer" : result.created ? "new lead" : "lead updated"}`);
     // Item 32 (AllDog, flag ALLDOG_MISSED_CALL_WA_ENABLED): automatic WhatsApp to the caller, after the response.
     if (!result.skipped) {
@@ -138,6 +148,16 @@ async function summarizeAnsweredCall(callId: string, live: LiveLinkParams): Prom
       if (details) break;
       await new Promise((r) => setTimeout(r, waitMs));
       details = await getCallById(callId).catch(() => null);
+    }
+    // Voice agent (section 6, only while active): a call answered by Eliran (CALLEE = the Telnyx number)
+    // is not downloaded / transcribed / summarized. Without the call record there is no CALLEE to check,
+    // so the call is left to paycall-sync, which has it.
+    if (voiceGuardActive()) {
+      if (!details) {
+        console.log(`[paycall voice-agent] webhook call ${callId}: call record not found — left for the sync (CALLEE needed)`);
+        return;
+      }
+      if (await skipPaycallSummaryForVoiceAgent(details, "webhook", billsec ?? paycallBillsec(details))) return;
     }
     if (details) {
       phone = phone ?? details.CALLERID;

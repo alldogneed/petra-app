@@ -273,7 +273,9 @@ export type SkipReason =
   | "not_activated"
   | "call_time_unknown"
   | "before_activation"
-  | "call_too_old";
+  | "call_too_old"
+  /** Section 6: the caller had a real conversation with the voice agent (booked / details / urgent). */
+  | "voice_agent_conversation";
 
 export const SKIP_REASON_LABELS: Record<SkipReason, string> = {
   disabled: "המתג כבוי",
@@ -288,6 +290,7 @@ export const SKIP_REASON_LABELS: Record<SkipReason, string> = {
   call_time_unknown: "זמן השיחה לא ידוע",
   before_activation: "השיחה הייתה לפני ההפעלה",
   call_too_old: "השיחה ישנה (לא שולחים לשיחות עבר)",
+  voice_agent_conversation: "הלקוח כבר דיבר עם אלירן (נקבעה שיחה / השאיר פרטים / דחוף)",
 };
 
 /**

@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 /**
- * GET/POST /api/owner/alldog-test-alert?kind=bot_reply|wa_send|transcription|webhook|call_summary|all
+ * GET/POST /api/owner/alldog-test-alert?kind=bot_reply|wa_send|transcription|webhook|call_summary|bot_summary|voice_agent|voice_summary|all
  *
  * Manual check of the AllDog failure alerts (item 31): simulates a failure of the given kind and
  * sends Or a test alert ("🧪 בדיקה: …") through the real path (alertAllDogFailure →
@@ -20,6 +20,8 @@ const SAMPLE_ERRORS: Record<AllDogFailureKind, string> = {
   webhook: "חתימה לא תקינה (X-Hub-Signature-256) — ההודעה נדחתה (401)",
   call_summary: "גם הניסיון האחרון (שעתיים) לא הפיק סיכום",
   bot_summary: '400 {"type":"error","error":{"type":"invalid_request_error","message":"Schema is too complex for compilation."}}',
+  voice_agent: "חתימה לא תקינה (ElevenLabs-Signature) — ה-webhook של סוף שיחה נדחה (401)",
+  voice_summary: "גם הניסיון האחרון (שעתיים) לא הפיק סיכום — נכתב הסיכום של ElevenLabs",
 };
 const KINDS = Object.keys(FAILURE_KIND_TITLES) as AllDogFailureKind[];
 

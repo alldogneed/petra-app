@@ -39,6 +39,14 @@ describe("alertNewLeadIfEnabled", () => {
     });
   });
 
+  it("skipBellUserIds: that owner gets no bell (another one reaches her); the other owners, WhatsApp and email are unchanged", async () => {
+    findUnique.mockResolvedValue({ tier: "pro", phone: "0501112222", featureOverrides: null });
+    findMany.mockResolvedValue([{ userId: "u-or", user: { email: "" } }, { userId: "u-racheli", user: { email: "" } }]);
+    await alertNewLeadIfEnabled("b1", lead, { skipBellUserIds: ["u-racheli"] });
+    expect(createMany).toHaveBeenCalledWith({ data: [expect.objectContaining({ userId: "u-or", title: "ליד חדש נכנס" })] });
+    expect(sendWhatsAppTemplate).toHaveBeenCalled();
+  });
+
   it("free business: nothing is sent", async () => {
     findUnique.mockResolvedValue({ tier: "free", phone: "0501112222", featureOverrides: null });
     await alertNewLeadIfEnabled("b1", lead);

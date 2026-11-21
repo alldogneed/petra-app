@@ -32,6 +32,11 @@ export interface LeadAlertInput {
     city: string | null;
     source: string | null;
   };
+  /**
+   * Owners who get no bell for this lead because another bell about it reaches them (AllDog's
+   * voice agent: the sales rep gets the one with the call summary). Email and WhatsApp unchanged.
+   */
+  skipBellUserIds?: string[];
 }
 
 function escapeHtml(str: string): string {
@@ -87,7 +92,7 @@ export async function sendLeadAlert(input: LeadAlertInput): Promise<void> {
 
       // In-app notification (bell) — always works, no external dependency
       await prisma.notification.createMany({
-        data: owners.map((o) => ({
+        data: owners.filter((o) => !input.skipBellUserIds?.includes(o.userId)).map((o) => ({
           userId: o.userId,
           title: "ליד חדש נכנס",
           message: `${lead.name} · ${phoneParam} · ${serviceParam}`,
@@ -148,7 +153,11 @@ export async function sendLeadAlert(input: LeadAlertInput): Promise<void> {
  * Same gate as the route: the business's `lead_notifications` feature (PRO+, overrides win).
  * Never throws.
  */
-export async function alertNewLeadIfEnabled(businessId: string, lead: LeadAlertInput["lead"]): Promise<void> {
+export async function alertNewLeadIfEnabled(
+  businessId: string,
+  lead: LeadAlertInput["lead"],
+  opts: { skipBellUserIds?: string[] } = {},
+): Promise<void> {
   try {
     const { hasFeatureWithOverrides } = await import("@/lib/feature-flags");
     const business = await prisma.business.findUnique({
@@ -158,7 +167,7 @@ export async function alertNewLeadIfEnabled(businessId: string, lead: LeadAlertI
     if (!business) return;
     const overrides = (business.featureOverrides as Record<string, unknown> | null) ?? null;
     if (!hasFeatureWithOverrides(business.tier ?? "free", "lead_notifications", overrides as Record<string, boolean> | null)) return;
-    await sendLeadAlert({ businessId, businessPhone: business.phone ?? null, featureOverrides: overrides, lead });
+    await sendLeadAlert({ businessId, businessPhone: business.phone ?? null, featureOverrides: overrides, lead, skipBellUserIds: opts.skipBellUserIds });
   } catch (err) {
     console.error("[lead-alert] alertNewLeadIfEnabled failed:", err);
   }
