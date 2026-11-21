@@ -23,7 +23,7 @@ jest.mock("@/lib/rate-limit", () => {
   return { claimOnce: async (k: string) => (claimed.has(k) ? false : (claimed.add(k), true)), releaseClaim: async () => undefined, __claimed: claimed };
 });
 jest.mock("@/lib/notify-owner", () => ({ notifyOwnerAllDog: async (p: Row) => { sent.owner.push(p); } }));
-jest.mock("@/lib/lead-alert", () => ({ alertNewLeadIfEnabled: async (_b: string, lead: Row) => { sent.newLead.push(lead); } }));
+jest.mock("@/lib/lead-alert", () => ({ alertNewLeadIfEnabled: async (_b: string, lead: Row, opts: Row) => { sent.newLead.push({ ...lead, opts }); } }));
 jest.mock("@/lib/alldog/failure-alerts", () => ({ alertAllDogFailure: async (p: Row) => { sent.failures.push(p); }, FAILURE_KIND_TITLES: {} }));
 jest.mock("@/lib/whatsapp-template-chain", () => ({ sendWithTemplateChain: async (p: Row) => { sent.rep.push(p); return { success: true, via: "template" }; } }));
 jest.mock("@/lib/alldog/voice-agent/after-booking", () => ({ afterSalesCallBooked: async () => undefined }));
@@ -379,6 +379,8 @@ describe("two calls from the same number", () => {
     expect(db.leads[0]).toMatchObject({ phone: "0541110001", name: "דנה כהן", city: "כפר סבא" });
     expect(db.tasks.filter((t) => t.status === "OPEN")).toHaveLength(1);
     expect(sent.newLead).toHaveLength(1); // the "new lead" alert only once
+    // …and its bell skips the sales rep: she gets the bell with the summary instead.
+    expect(sent.newLead[0].opts).toEqual({ skipBellUserIds: ["user-racheli"] });
     expect(new Set(db.calls.map((c) => c.leadId)).size).toBe(1);
   });
   it("the same tool call repeated (same conversation) → still one lead, one task, one journal line", async () => {
@@ -427,21 +429,37 @@ describe("the callback task and the urgent alerts", () => {
     expect(sent.owner).toHaveLength(1);
     expect(sent.rep).toHaveLength(1);
   });
-  it("30 minutes inside office hours; the next opening outside them (Israel time, Sun–Thu 9–17, Fri 9–14)", () => {
+  it("30 minutes for a call between 09:00 and 16:30 (Sun–Thu); any other call → the next workday at 09:30", () => {
     const due = (ymd: string, hhmm: string) => callbackDueAt(israelInstant(ymd, hhmm)).toISOString();
-    expect(due("2026-11-22", "09:49")).toBe(israelInstant("2026-11-22", "10:19").toISOString()); // Sunday morning
-    expect(due("2026-11-22", "16:50")).toBe(israelInstant("2026-11-22", "17:20").toISOString()); // still open when the call came
-    expect(due("2026-11-22", "08:10")).toBe(israelInstant("2026-11-22", "09:00").toISOString()); // before opening → today's opening
-    expect(due("2026-11-22", "17:00")).toBe(israelInstant("2026-11-23", "09:00").toISOString()); // closed → tomorrow
-    expect(due("2026-11-26", "21:30")).toBe(israelInstant("2026-11-27", "09:00").toISOString()); // Thursday night → Friday
-    expect(due("2026-11-27", "14:05")).toBe(israelInstant("2026-11-29", "09:00").toISOString()); // Friday afternoon → Sunday
-    expect(due("2026-11-21", "09:49")).toBe(israelInstant("2026-11-22", "09:00").toISOString()); // Saturday → Sunday
+    const at = (ymd: string, hhmm: string) => israelInstant(ymd, hhmm).toISOString();
+    // 22/11/2026 is a Sunday.
+    expect(due("2026-11-22", "09:00")).toBe(at("2026-11-22", "09:30")); // the first minute of the day
+    expect(due("2026-11-22", "09:49")).toBe(at("2026-11-22", "10:19"));
+    expect(due("2026-11-22", "16:30")).toBe(at("2026-11-22", "17:00")); // the last call returned the same day
+    expect(due("2026-11-22", "16:31")).toBe(at("2026-11-23", "09:30")); // after 16:30 → the next morning, never after closing
+    expect(due("2026-11-22", "16:59")).toBe(at("2026-11-23", "09:30"));
+    expect(due("2026-11-22", "08:10")).toBe(at("2026-11-22", "09:30")); // before opening → the same day
+    expect(due("2026-11-22", "17:00")).toBe(at("2026-11-23", "09:30")); // closed → Monday
+    expect(due("2026-11-25", "22:15")).toBe(at("2026-11-26", "09:30")); // Wednesday night → Thursday
+    expect(due("2026-11-26", "16:30")).toBe(at("2026-11-26", "17:00")); // Thursday, still in time
+    expect(due("2026-11-26", "16:45")).toBe(at("2026-11-29", "09:30")); // Thursday after 16:30 → Sunday
+    expect(due("2026-11-26", "17:01")).toBe(at("2026-11-29", "09:30")); // Thursday after closing → Sunday
+    expect(due("2026-11-27", "10:00")).toBe(at("2026-11-29", "09:30")); // Friday is off, also in the morning
+    expect(due("2026-11-28", "20:00")).toBe(at("2026-11-29", "09:30")); // Saturday night → Sunday
+    expect(due("2026-11-21", "09:49")).toBe(at("2026-11-22", "09:30")); // Saturday → Sunday
+  });
+  it("summer time too: 09:30 Israel time on the next workday", () => {
+    // 5/7/2026 is a Sunday (UTC+3).
+    expect(callbackDueAt(israelInstant("2026-07-03", "12:00")).toISOString()).toBe("2026-07-05T06:30:00.000Z");
+    expect(callbackDueAt(israelInstant("2026-07-05", "11:00")).toISOString()).toBe("2026-07-05T08:30:00.000Z");
   });
   it("the target in words", () => {
     const now = israelInstant("2026-11-22", "09:49");
     expect(callbackDueLabel(callbackDueAt(now), now)).toBe("היום עד 10:19");
-    const sat = israelInstant("2026-11-21", "09:49");
-    expect(callbackDueLabel(callbackDueAt(sat), sat)).toBe("יום ראשון 22/11 ב-09:00");
+    const early = israelInstant("2026-11-22", "07:30");
+    expect(callbackDueLabel(callbackDueAt(early), early)).toBe("היום עד 09:30");
+    const fri = israelInstant("2026-11-27", "10:00");
+    expect(callbackDueLabel(callbackDueAt(fri), fri)).toBe("יום ראשון 29/11 עד 09:30");
   });
   it("the rep's alert text: who, the summary line, when to call back", () => {
     const base = { businessId: "b", conversationId: "c", kind: "summary" as const, leadId: "l1", displayName: "דנה כהן", phone: "0541110001", urgent: false, line: "נובח על אורחים · כלב: רקס", dueLabel: "היום עד 10:19" };

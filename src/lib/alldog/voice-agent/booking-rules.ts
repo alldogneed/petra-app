@@ -3,7 +3,7 @@
  * Used by POST /api/webhooks/alldog-voice/book and /details (src/lib/alldog/voice-agent/booking.ts).
  */
 import type { LeadPetDetails } from "@/lib/lead-pet-notes";
-import { addDaysYmd, isOfficeOpenAt, israelInstant, israelParts, israelYmd, officeHoursFor, weekdayOfYmd } from "@/lib/alldog/time";
+import { addDaysYmd, israelInstant, israelParts, israelYmd, weekdayOfYmd } from "@/lib/alldog/time";
 import {
   SALES_CALL_MINUTES,
   SALES_WINDOWS,
@@ -53,30 +53,49 @@ export interface VoiceDetails {
 export const CALLBACK_WITHIN_MS = 30 * 60 * 1000;
 
 /**
- * The "לחזור טלפונית" task's target (Or, 21/11/2026): 30 minutes after the call while the office is
- * open (Sun–Thu 09:00–17:00, Fri 09:00–14:00, src/lib/alldog/time.ts); outside those hours, the
- * opening of the next office day. Holidays are not known here. Pure — tested.
+ * The sales rep's hours for that promise (Or, 21/11/2026, final): Sunday–Thursday 09:00–17:00;
+ * Friday and Saturday off. On purpose NOT officeHoursFor() (src/lib/alldog/time.ts) — that is the
+ * office rule of the WhatsApp bot and the automatic messages (Friday 09:00–14:00), which stays as it is.
+ */
+export const CALLBACK_WORKDAYS: readonly number[] = [0, 1, 2, 3, 4]; // Sunday–Thursday
+export const CALLBACK_OPEN = "09:00";
+export const CALLBACK_CLOSE = "17:00";
+/** A call outside those hours is returned by this time on the next workday (opening + 30 minutes). */
+export const CALLBACK_NEXT_DAY_BY = "09:30";
+/** The last call that can still be returned the same day: 30 minutes before closing. */
+export const CALLBACK_LAST_SAME_DAY = "16:30";
+
+/** A call at this instant can be returned within 30 minutes, before closing (Israel time; 16:30 itself still can). */
+export function canCallBackSameDay(d: Date): boolean {
+  const p = israelParts(d);
+  return CALLBACK_WORKDAYS.includes(p.weekday) && p.hhmm >= CALLBACK_OPEN && p.hhmm <= CALLBACK_LAST_SAME_DAY;
+}
+
+/**
+ * The "לחזור טלפונית" task's target: 30 minutes after a call that came between 09:00 and 16:30 on
+ * a workday (so the target is never after closing); any other call → the next workday at 09:30
+ * (a call after 16:30 → the next morning; Thursday after 16:30, Friday or Saturday → Sunday 09:30;
+ * a call before 09:00 on a workday → the same day 09:30). Holidays are not known here.
+ * Pure — tested.
  */
 export function callbackDueAt(callAt: Date): Date {
-  if (isOfficeOpenAt(callAt)) return new Date(callAt.getTime() + CALLBACK_WITHIN_MS);
+  if (canCallBackSameDay(callAt)) return new Date(callAt.getTime() + CALLBACK_WITHIN_MS);
   const today = israelYmd(callAt);
   for (let i = 0; i <= 8; i++) {
     const ymd = addDaysYmd(today, i);
-    const hours = officeHoursFor(weekdayOfYmd(ymd));
-    if (!hours) continue;
-    const open = israelInstant(ymd, hours.open);
-    if (open.getTime() > callAt.getTime()) return open;
+    if (!CALLBACK_WORKDAYS.includes(weekdayOfYmd(ymd))) continue;
+    if (israelInstant(ymd, CALLBACK_OPEN).getTime() > callAt.getTime()) return israelInstant(ymd, CALLBACK_NEXT_DAY_BY);
   }
   return new Date(callAt.getTime() + CALLBACK_WITHIN_MS);
 }
 
-/** "היום עד 10:19" / "יום ראשון 22/11 ב-09:00" — for the task and the rep's alert. Pure. */
+/** "היום עד 10:19" / "יום ראשון 22/11 עד 09:30" — for the task and the rep's alert. Pure. */
 export function callbackDueLabel(due: Date, now: Date): string {
   const d = israelParts(due);
   if (d.ymd === israelYmd(now)) return `היום עד ${d.hhmm}`;
   const [, m, day] = d.ymd.split("-");
   const names = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-  return `יום ${names[d.weekday]} ${Number(day)}/${Number(m)} ב-${d.hhmm}`;
+  return `יום ${names[d.weekday]} ${Number(day)}/${Number(m)} עד ${d.hhmm}`;
 }
 
 /**

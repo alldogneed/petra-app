@@ -114,8 +114,14 @@ export async function saveVoiceLead(businessId: string, input: VoiceLeadInput, p
   });
   if (created) {
     // Leads written through the service layer don't get POST /api/leads' "ליד חדש" alert — send it here (as the bot does).
+    // The sales rep gets her own bell for this call, with the summary (rep-alert.ts) — not this one too.
+    const rep = voiceAgentSettings().salesRepUserId;
     await runAfterResponse(
-      alertNewLeadIfEnabled(businessId, { name: name || phone, phone, requestedService: null, city, source: VOICE_LEAD_SOURCE }),
+      alertNewLeadIfEnabled(
+        businessId,
+        { name: name || phone, phone, requestedService: null, city, source: VOICE_LEAD_SOURCE },
+        { skipBellUserIds: rep ? [rep] : [] },
+      ),
     );
   }
   await prisma.voiceAgentCall.update({
@@ -155,8 +161,8 @@ function urgentLine(input: VoiceDetails): string {
 
 /**
  * One "לחזור טלפונית" task per lead (an open one from the bot counts); urgent → "דחוף: " + URGENT.
- * Target (Or, 21/11/2026): 30 minutes after the call inside office hours, else the next opening
- * (callbackDueAt) — what Eliran promises the caller. An open task gets the earlier target.
+ * Target (Or, 21/11/2026): 30 minutes after a call inside the rep's hours (Sun–Thu 09:00–17:00),
+ * else the next workday at 09:30 (callbackDueAt) — what Eliran promises the caller. An open task gets the earlier target.
  */
 export async function ensureCallbackTask(
   businessId: string, leadId: string, displayName: string, phone: string, input: VoiceDetails, callAt: Date = new Date(),
