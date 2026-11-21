@@ -108,7 +108,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (Math.round(amount * 100) !== amount * 100) {
+    // Float-safe: 19.99 * 100 = 1998.9999… — strict equality rejected ~9% of valid amounts.
+    if (Math.abs(amount * 100 - Math.round(amount * 100)) > 1e-6) {
       return NextResponse.json(
         { error: "סכום לא תקין — מקסימום 2 ספרות אחרי הנקודה" },
         { status: 400 }

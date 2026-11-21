@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { cancelBoardingCheckoutReminders, rescheduleBoardingCheckoutReminder, scheduleBoardingThankYou } from "@/lib/reminder-service";
@@ -58,6 +59,14 @@ export async function PATCH(
     const parsed = PatchBoardingSchema.safeParse(raw);
     if (!parsed.success) return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     const body = parsed.data;
+
+    // Moving a stay (room / yard / dates) = boarding management (rule #34): owner-controllable
+    // via BOARDING_MANAGE (on by default for every role). Status, notes and actual check-in /
+    // check-out times stay open to every member.
+    const movesStay = body.roomId !== undefined || body.yardId !== undefined || body.checkIn !== undefined || body.checkOut !== undefined;
+    if (movesStay && !sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.BOARDING_MANAGE)) {
+      return NextResponse.json({ error: "אין הרשאה לשנות חדר או תאריכים של שהייה" }, { status: 403 });
+    }
 
     let stay;
     try {

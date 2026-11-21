@@ -1980,6 +1980,7 @@ model ServiceDogProfile {
   // Location tracking
   currentLocation       String    @default("TRAINER")  // TRAINER | FOSTER | BOARDING | FIELD
   notes                 String?
+  alertNote             String?   // הערה קופצת — shown as a modal when the dog's file opens (סימבה 16/11/2026)
   documents             Json      @default("[]")
   trainingTests         Json      @default("[]")
   feedingHistory        Json      @default("[]")

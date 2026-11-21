@@ -273,6 +273,7 @@ export default function OrderDetailPage() {
         body: JSON.stringify({ status: "confirmed" }),
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["order", orderId] }),
+    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון ההזמנה"),
   });
 
   const completeMutation = useMutation({
@@ -283,6 +284,7 @@ export default function OrderDetailPage() {
         body: JSON.stringify({ status: "completed" }),
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["order", orderId] }); toast.success("ההזמנה סומנה כהושלמה"); },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון ההזמנה"),
   });
 
   const deleteCancelledMutation = useMutation({
@@ -323,6 +325,7 @@ export default function OrderDetailPage() {
         qc.invalidateQueries({ queryKey: ["order", orderId] });
       }
     },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בביטול ההזמנה"),
   });
 
   // Draft-only: replace lines + discount; totals recalculated server-side

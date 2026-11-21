@@ -18,8 +18,13 @@
  */
 import { normalizeHebrewPunct } from "@/lib/text-variants";
 import { staysOverlap } from "@/lib/boarding-overlap";
+import { parseOrderDateTime } from "@/lib/order-time";
+
+/** Israel wall-clock "YYYY-MM-DDTHH:mm:ss" → instant (new Date() on the UTC server was 2–3h off). */
+const israelInstant = (s: string): Date => parseOrderDateTime(s) ?? new Date(s);
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { TENANT_PERMS } from "@/lib/permissions";
 import prisma from "@/lib/prisma";
 import {
   textResult,
@@ -466,7 +471,7 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
             select: { id: true, name: true },
           })).filter((p) => normalizeHebrewPunct(p.name).toLowerCase() === key);
           for (const sib of siblings) {
-            const dup = await findOverlappingPetStay(prisma, businessId, sib.id, new Date(checkInDT), checkOutDT ? new Date(checkOutDT) : null);
+            const dup = await findOverlappingPetStay(prisma, businessId, sib.id, israelInstant(checkInDT), checkOutDT ? israelInstant(checkOutDT) : null);
             if (dup) {
               throw new ServiceError(
                 `כבר קיימת הזמנה חופפת לכלב "${safeField(sib.name, 40)}" של אותו לקוח (pet id: ${sib.id}, stay id: ${dup.id}) — כנראה אותו כלב שנרשם פעמיים. לא נוצרה הזמנה. אם זה באמת כלב אחר, שלח שוב עם allow_duplicate: true`,
@@ -481,7 +486,8 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
         let room: { id: string; name: string; pricePerNight: number | null } | null = null;
         let availabilityLine = "";
         if (args.room_id) {
-          const r = await checkRoomAvailability(businessId, prisma, args.room_id, from, to ?? "2099-12-31");
+          // Date + time, same capacity rule as the save (staysOverlapAt).
+          const r = await checkRoomAvailability(businessId, prisma, args.room_id, checkInDT, checkOutDT ?? "2099-12-31T23:59:00");
           const roomRow = await prisma.room.findFirst({ where: { id: args.room_id, businessId }, select: { id: true, name: true, pricePerNight: true } });
           room = roomRow;
           availabilityLine = `\nזמינות חדר ${safeField(roomRow?.name, 40)}: ${r.available ? "✅ פנוי" : "❌ מלא"} (${r.occupiedSlots}/${r.capacity})${r.conflicts.length ? ` — חופף ל: ${r.conflicts.map((c) => safeField(c.pet?.name, 30) || "?").join(", ")}` : ""}`;
@@ -683,6 +689,10 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:boarding")) return ctx.denyScope("update_boarding_stay", "write:boarding");
+      // Room / yard / date changes need BOARDING_MANAGE (same rule as PATCH /api/boarding/[id]).
+      if ((args.room_id || args.yard_id || args.check_in || args.check_out || args.check_in_time || args.check_out_time) && !ctx.hasPermission(TENANT_PERMS.BOARDING_MANAGE)) {
+        return ctx.denyPermission("update_boarding_stay", TENANT_PERMS.BOARDING_MANAGE);
+      }
       const params = { ...args };
       try {
         const replay = await findIdempotentReplay(connectionId, "update_boarding_stay", args.idempotency_key);
@@ -714,8 +724,8 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
         const checkInDT = from ? composeDateTime(from, args.check_in_time ?? settings.boardingCheckInTime) : undefined;
         const checkOutDT = to ? composeDateTime(to, args.check_out_time ?? settings.boardingCheckOutTime) : undefined;
 
-        const effectiveIn = checkInDT ? new Date(checkInDT) : existing.checkIn;
-        const effectiveOut = checkOutDT ? new Date(checkOutDT) : existing.checkOut;
+        const effectiveIn = checkInDT ? israelInstant(checkInDT) : existing.checkIn;
+        const effectiveOut = checkOutDT ? israelInstant(checkOutDT) : existing.checkOut;
         if (effectiveOut && effectiveOut < effectiveIn) throw new ServiceError("תאריך היציאה חייב להיות אחרי תאריך הכניסה", "VALIDATION");
 
         const changes: string[] = [];
@@ -725,7 +735,7 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
         if (args.room_id && args.room_id !== existing.roomId) {
           const room = await prisma.room.findFirst({ where: { id: args.room_id, businessId }, select: { name: true } });
           if (!room) throw new ServiceError("חדר לא נמצא", "NOT_FOUND");
-          const r = await checkRoomAvailability(businessId, prisma, args.room_id, israelYmd(effectiveIn), effectiveOut ? israelYmd(effectiveOut) : "2099-12-31");
+          const r = await checkRoomAvailability(businessId, prisma, args.room_id, effectiveIn.toISOString(), effectiveOut ? effectiveOut.toISOString() : "2099-12-31T23:59:00");
           const availability = r.available ? "פנוי" : `❌ מלא ${r.occupiedSlots}/${r.capacity}`;
           changes.push(`חדר: ${existing.room ? safeField(existing.room.name, 30) : "—"} → ${safeField(room.name, 30)} (${availability}) (room id: ${args.room_id})`);
           if (!r.available && !args.dry_run) throw new ServiceError("החדר מלא בתאריכים אלו", "CONFLICT");

@@ -42,3 +42,23 @@ export function staysOverlap(
   const [bStart, bEnd] = occupiedDays(b.checkIn, b.checkOut);
   return (aEnd === null || bStart < aEnd) && (bEnd === null || aStart < bEnd);
 }
+
+type StayTimes = { checkIn: Date | string; checkOut: Date | string | null | undefined };
+
+/**
+ * Room CAPACITY rule = shared NIGHTS, Israel calendar days, hours ignored (גבעת הכלבים 18/11/2026:
+ * a dog arriving in the morning and a dog leaving in the evening share a capacity-1 room every
+ * day — the staff arrange them by hand). A stay takes the nights [check-in day, check-out day);
+ * the check-out day is always free whatever the hour, and a same-day stay (day care) takes no
+ * night, so it never blocks the room. Open-ended = every night from check-in.
+ * (`staysOverlap` stays the display / duplicate-dog rule, where a day stay occupies its day.)
+ */
+export function staysShareNight(a: StayTimes, b: StayTimes): boolean {
+  const aStart = israelDayKey(a.checkIn);
+  const bStart = israelDayKey(b.checkIn);
+  const aEnd = a.checkOut == null ? null : israelDayKey(a.checkOut);
+  const bEnd = b.checkOut == null ? null : israelDayKey(b.checkOut);
+  if (aEnd !== null && aEnd <= aStart) return false; // day stay — no night
+  if (bEnd !== null && bEnd <= bStart) return false;
+  return (aEnd === null || bStart < aEnd) && (bEnd === null || aStart < bEnd);
+}

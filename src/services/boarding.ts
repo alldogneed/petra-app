@@ -8,9 +8,21 @@
  * stay in routes. Room status auto-update on check-in/out is domain logic.
  */
 
-import { staysOverlap, israelDayKey } from "@/lib/boarding-overlap";
+import { parseOrderDateTime } from "@/lib/order-time";
+import { staysOverlap, staysShareNight, israelDayKey } from "@/lib/boarding-overlap";
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
+
+/**
+ * Check-in/out arrive as Israel wall-clock strings without an offset ("2026-12-17T14:00:00")
+ * from the boarding form and MCP. `new Date(s)` on the server (UTC on Vercel) stored them
+ * 2h (winter) / 3h (summer) late — and a late-evening time moved to the next day
+ * (גבעת הכלבים, 17/11/2026). A string with Z / ±HH:MM is already an instant and is kept.
+ */
+function stayTime(value: string | Date): Date {
+  if (value instanceof Date) return value;
+  return parseOrderDateTime(value) ?? new Date(value);
+}
 
 export type DbClient = PrismaClient;
 export { ServiceError };
@@ -26,6 +38,43 @@ const VALID_YARD_STATUSES = ["available", "needs_cleaning"];
 export interface ListBoardingOptions {
   from?: string;
   to?: string;
+  /**
+   * Status filter. Omitted = the screen's behaviour (a date range returns only
+   * reserved/checked_in stays). "all" or explicit statuses lift that forcing, so a
+   * range can also return finished (checked_out) / canceled stays.
+   */
+  status?: StayStatusFilter;
+  customerId?: string;
+}
+
+export const STAY_STATUS_VALUES = ["reserved", "checked_in", "checked_out", "canceled"] as const;
+export type StayStatusValue = (typeof STAY_STATUS_VALUES)[number];
+export type StayStatusFilter = StayStatusValue | "all" | StayStatusValue[];
+
+export const STAY_STATUS_HE: Record<string, string> = {
+  reserved: "הוזמן",
+  checked_in: "בפנסיון",
+  checked_out: "יצא",
+  canceled: "בוטל",
+};
+
+/**
+ * Prisma `status` condition for a stay list. Pure.
+ * - undefined + a date range → reserved/checked_in (the boarding screen's range view)
+ * - undefined without a range → no condition
+ * - "all" → no condition
+ * - one status / a list → exactly those
+ */
+export function stayStatusCondition(
+  status: StayStatusFilter | undefined,
+  hasRange: boolean
+): { in: string[] } | undefined {
+  if (status === undefined) return hasRange ? { in: ["reserved", "checked_in"] } : undefined;
+  if (status === "all") return undefined;
+  const list = (Array.isArray(status) ? status : [status]).filter((s) =>
+    (STAY_STATUS_VALUES as readonly string[]).includes(s)
+  );
+  return list.length ? { in: list } : undefined;
 }
 
 export interface CreateBoardingStayInput {
@@ -117,12 +166,16 @@ const PET_SELECT_FULL = {
 export async function listBoardingStays(businessId: string, db: DbClient, opts: ListBoardingOptions = {}) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { businessId };
+  if (opts.customerId) where.customerId = opts.customerId;
 
-  if (opts.from && opts.to) {
+  const hasRange = !!(opts.from && opts.to);
+  if (hasRange) {
     where.checkIn = { lte: new Date(opts.to + "T23:59:59") };
-    where.OR = [{ checkOut: { gte: new Date(opts.from) } }, { checkOut: null }];
-    where.status = { in: ["reserved", "checked_in"] };
+    where.OR = [{ checkOut: { gte: new Date(opts.from!) } }, { checkOut: null }];
   }
+  // Only forced to reserved/checked_in when the caller asked for no status (screen behaviour).
+  const statusCond = stayStatusCondition(opts.status, hasRange);
+  if (statusCond) where.status = statusCond;
 
   const include = {
     room: true,
@@ -132,7 +185,7 @@ export async function listBoardingStays(businessId: string, db: DbClient, opts: 
     assignedTo: { select: { id: true, name: true } },
   };
 
-  if (opts.from && opts.to) {
+  if (hasRange || opts.status !== undefined) {
     return db.boardingStay.findMany({ where, include, orderBy: { checkIn: "desc" }, take: 500 });
   }
 
@@ -156,6 +209,50 @@ export async function listBoardingStays(businessId: string, db: DbClient, opts: 
   return [...active, ...history].sort((a, b) => b.checkIn.getTime() - a.checkIn.getTime());
 }
 
+export interface ListBoardingStaysPageOptions extends ListBoardingOptions {
+  offset?: number;
+  limit?: number;
+}
+
+/**
+ * One page of stays + the total matching count (MCP list_boarding_stays). Same filters
+ * as listBoardingStays; without a range and without a status every stay counts
+ * (newest check-in first). `businessId` comes from the token/session only.
+ */
+export async function listBoardingStaysPage(businessId: string, db: DbClient, opts: ListBoardingStaysPageOptions = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: any = { businessId };
+  if (opts.customerId) where.customerId = opts.customerId;
+  const hasRange = !!(opts.from && opts.to);
+  if (opts.from || opts.to) {
+    // A one-sided range is allowed here: stays that touch [from, to].
+    if (opts.to) where.checkIn = { lte: new Date(opts.to + "T23:59:59") };
+    if (opts.from) where.OR = [{ checkOut: { gte: new Date(opts.from) } }, { checkOut: null }];
+  }
+  const statusCond = stayStatusCondition(opts.status, hasRange);
+  if (statusCond) where.status = statusCond;
+
+  const offset = Math.max(0, Math.floor(opts.offset ?? 0));
+  const limit = Math.min(Math.max(Math.floor(opts.limit ?? 30), 1), 100);
+  const [stays, total] = await Promise.all([
+    db.boardingStay.findMany({
+      where,
+      include: {
+        room: { select: { id: true, name: true } },
+        yard: { select: { id: true, name: true } },
+        pet: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true } },
+        payments: { where: { status: "paid" }, select: { amount: true } },
+      },
+      orderBy: [{ checkIn: "desc" }, { id: "asc" }],
+      skip: offset,
+      take: limit,
+    }),
+    db.boardingStay.count({ where }),
+  ]);
+  return { stays, total, offset, limit };
+}
+
 export async function getBoardingStay(businessId: string, db: DbClient, id: string) {
   const stay = await db.boardingStay.findFirst({
     where: { id, businessId },
@@ -176,8 +273,8 @@ function roomFullMessage(capacity: number) {
 
 /**
  * Count active (reserved/checked_in) stays in a room that share a night with the
- * given stay — by Israel calendar day, check-out day free (`staysOverlap`), so a
- * same-day turnover (out 1/10, in 1/10) fits. A null checkOut is open-ended.
+ * given stay — by shared NIGHTS (`staysShareNight`): hours ignored, the check-out day is free and a
+ * day stay takes no night. Null checkOut = open-ended.
  */
 async function countOverlappingRoomStays(
   db: DbClient,
@@ -200,7 +297,7 @@ async function countOverlappingRoomStays(
     },
     select: { checkIn: true, checkOut: true },
   });
-  return candidates.filter((s) => staysOverlap(s, { checkIn, checkOut })).length;
+  return candidates.filter((s) => staysShareNight(s, { checkIn, checkOut })).length;
 }
 
 /** An active (reserved / checked_in) stay of this pet that shares a night with the range. */
@@ -267,6 +364,16 @@ export async function createBoardingStay(
     throw new ServiceError("הערות ארוכות מדי (מקסימום 2000 תווים)", "VALIDATION");
   }
 
+  // A check-out before (or at) check-in was saved as is and broke nights/price/occupancy.
+  const ciDate = stayTime(checkIn);
+  const coDate = checkOut ? stayTime(checkOut) : null;
+  if (isNaN(ciDate.getTime()) || (coDate && isNaN(coDate.getTime()))) {
+    throw new ServiceError("תאריך לא תקין", "VALIDATION");
+  }
+  if (coDate && coDate <= ciDate) {
+    throw new ServiceError("תאריך היציאה חייב להיות אחרי תאריך הכניסה", "VALIDATION");
+  }
+
   const resolvedCustomerId = customerId || null;
 
   if (assignedToUserId) {
@@ -284,7 +391,7 @@ export async function createBoardingStay(
   if (!petCheck) throw new ServiceError("חיית מחמד לא נמצאה", "NOT_FOUND");
 
   // The same dog can't have two active stays on the same night (duplicate booking).
-  const dup = await findOverlappingPetStay(db, businessId, petId, new Date(checkIn), checkOut ? new Date(checkOut) : null);
+  const dup = await findOverlappingPetStay(db, businessId, petId, stayTime(checkIn), checkOut ? stayTime(checkOut) : null);
   if (dup) {
     throw new ServiceError(
       `לכלב הזה כבר יש הזמנת פנסיון חופפת (${formatStayRange(dup.checkIn, dup.checkOut)}). אפשר לערוך אותה במקום ליצור חדשה`,
@@ -309,14 +416,14 @@ export async function createBoardingStay(
 
   // Room capacity check before create
   if (roomId) {
-    await assertRoomCapacity(db, businessId, roomId, new Date(checkIn), checkOut ? new Date(checkOut) : null);
+    await assertRoomCapacity(db, businessId, roomId, stayTime(checkIn), checkOut ? stayTime(checkOut) : null);
   }
 
   const stay = await db.boardingStay.create({
     data: {
       businessId,
-      checkIn: new Date(checkIn),
-      checkOut: checkOut ? new Date(checkOut) : undefined,
+      checkIn: stayTime(checkIn),
+      checkOut: checkOut ? stayTime(checkOut) : undefined,
       petId,
       customerId: resolvedCustomerId,
       roomId: roomId || null,
@@ -336,7 +443,7 @@ export async function createBoardingStay(
 
   // Post-create race-condition guard: re-check capacity; delete our stay if a concurrent request slipped through
   if (roomId && stay.room) {
-    const postCount = await countOverlappingRoomStays(db, businessId, roomId, new Date(checkIn), checkOut ? new Date(checkOut) : null);
+    const postCount = await countOverlappingRoomStays(db, businessId, roomId, stayTime(checkIn), checkOut ? stayTime(checkOut) : null);
     if (postCount > stay.room.capacity) {
       await db.boardingStay.delete({ where: { id: stay.id } });
       throw new ServiceError(roomFullMessage(stay.room.capacity), "CONFLICT");
@@ -370,13 +477,19 @@ export async function updateBoardingStay(
   const finalCheckIn = input.actualCheckinTime
     ? new Date(input.actualCheckinTime)
     : input.checkIn !== undefined
-    ? new Date(input.checkIn)
+    ? stayTime(input.checkIn)
     : existing.checkIn;
   const finalCheckOut = input.actualCheckoutTime
     ? new Date(input.actualCheckoutTime)
     : input.checkOut !== undefined
-    ? (input.checkOut ? new Date(input.checkOut) : null)
+    ? (input.checkOut ? stayTime(input.checkOut) : null)
     : existing.checkOut;
+  if (
+    (input.checkIn !== undefined || input.checkOut !== undefined) &&
+    (isNaN(finalCheckIn.getTime()) || (finalCheckOut && (isNaN(finalCheckOut.getTime()) || finalCheckOut <= finalCheckIn)))
+  ) {
+    throw new ServiceError("תאריך היציאה חייב להיות אחרי תאריך הכניסה", "VALIDATION");
+  }
   // Re-check capacity only when the stay will actively occupy a room and
   // something capacity-relevant changed (room, dates, or reactivated status).
   const capacityRelevantChange =
@@ -413,9 +526,9 @@ export async function updateBoardingStay(
   const stay = await db.boardingStay.update({
     where: { id, businessId },
     data: {
-      ...(input.checkIn !== undefined && { checkIn: new Date(input.checkIn) }),
+      ...(input.checkIn !== undefined && { checkIn: stayTime(input.checkIn) }),
       ...(input.actualCheckinTime && { checkIn: new Date(input.actualCheckinTime) }),
-      ...(input.checkOut !== undefined && { checkOut: input.checkOut ? new Date(input.checkOut) : null }),
+      ...(input.checkOut !== undefined && { checkOut: input.checkOut ? stayTime(input.checkOut) : null }),
       ...(input.actualCheckoutTime && { checkOut: new Date(input.actualCheckoutTime) }),
       ...(input.status !== undefined && { status: input.status }),
       ...(input.roomId !== undefined && { roomId: input.roomId }),
@@ -775,7 +888,14 @@ export async function checkRoomAvailability(
       customer: { select: { id: true, name: true } },
     },
   });
-  const conflicts = candidates.filter((s) => staysOverlap(s, { checkIn: israelDayKey(from), checkOut: israelDayKey(to) }));
+  // With times (ISO / "YYYY-MM-DDTHH:mm", Israel wall-clock) → the same nights rule as the save
+  // (`staysShareNight`); bare days → the day rule.
+  const withTime = from.length > 10 && to.length > 10;
+  const conflicts = candidates.filter((s) =>
+    withTime
+      ? staysShareNight(s, { checkIn: stayTime(from), checkOut: stayTime(to) })
+      : staysOverlap(s, { checkIn: israelDayKey(from), checkOut: israelDayKey(to) })
+  );
 
   return {
     available: conflicts.length < room.capacity,

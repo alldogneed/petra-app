@@ -39,7 +39,8 @@ export async function resolveSession(
 ): Promise<FullSession | null> {
   const token = extractToken(request);
   if (!token) return null;
-  return getSessionByToken(token);
+  const method = (request.method || "GET").toUpperCase();
+  return getSessionByToken(token, { fresh: method !== "GET" && method !== "HEAD" });
 }
 
 // ─── Platform-level guards ─────────────────────────────────────────────────────
@@ -290,7 +291,18 @@ export async function requireBusinessAuth(
     if (biz?.status === "suspended") return NextResponse.json({ error: "business_suspended" }, { status: 403 });
     if (biz?.status === "closed") return NextResponse.json({ error: "business_closed" }, { status: 403 });
     if (isApiHiddenForVertical(biz?.vertical, requestPath(request))) return verticalHiddenResponse();
-    return { session, businessId: session.impersonatedBusinessId };
+    // The impersonating admin has no membership in the tenant, so the ~30 routes that read the
+    // caller's role from session.memberships fell back to "user" (e.g. /payments → 403).
+    // Act as the tenant's owner — a copy, never mutating the session object.
+    const impersonatedId = session.impersonatedBusinessId;
+    const actingSession: FullSession = {
+      ...session,
+      memberships: [
+        { businessId: impersonatedId, role: "owner", permissionOverrides: null, isActive: true },
+        ...session.memberships.filter((m) => m.businessId !== impersonatedId),
+      ],
+    };
+    return { session: actingSession, businessId: impersonatedId };
   }
 
   // Find the first active business membership — prefer owner role so users who are
@@ -393,4 +405,11 @@ function ipToNum(ip: string): number | null {
   if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255))
     return null;
   return (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3];
+}
+
+/** Owner/manager of the business, or a platform admin — may author "הודעות מפטרה" entries. */
+export function canAuthorSystemMessages(session: FullSession, businessId: string): boolean {
+  if (session.user.platformRole) return true;
+  const m = session.memberships.find((x) => x.businessId === businessId && x.isActive);
+  return m?.role === "owner" || m?.role === "manager";
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";
 import Link from "next/link";
@@ -55,10 +55,11 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
-import {
+import { defaultValidUntil,
   ADULT_TREATMENTS, PUPPY_TREATMENTS, getCellStatus, formatPlannedDisplay,
   getEmptyAdultPlan, getEmptyPuppyPlan,
-  type VaccinePlan, type VaccinePlanEntry,
+  VACCINATION_TYPES, buildVaccinationHistory,
+  type VaccinePlan, type VaccinePlanEntry, type VaccinationType,
 } from "@/lib/vaccine-plan";
 import {
   SERVICE_DOG_PHASES,
@@ -92,6 +93,8 @@ import { upload as blobUpload } from "@vercel/blob/client";
 import { directUploadErrorText, fileExtension, uploadContentType, uploadFileProblem } from "@/lib/blob-direct-upload";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { WeightSection } from "@/components/pets/WeightSection";
 
 // ─── Types ───
 
@@ -187,6 +190,8 @@ interface ServiceDogDetail {
   certificationDate: string | null;
   certificationExpiry: string | null;
   notes: string | null;
+  /** הערה קופצת — shown as a modal once per browser session when the file opens */
+  alertNote: string | null;
   // New fields
   pedigreeNumber: string | null;
   purchasePrice: number | null;
@@ -323,6 +328,8 @@ function ServiceDogProfilePageContent() {
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showAlertPopup, setShowAlertPopup] = useState(false);
+  const [showAlertEditor, setShowAlertEditor] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: dog, isLoading, isError } = useQuery<ServiceDogDetail>({
@@ -400,6 +407,39 @@ function ServiceDogProfilePageContent() {
       toast.success("מיקום עודכן");
     },
     onError: () => toast.error("שגיאה בעדכון מיקום"),
+  });
+
+  // Pop-up note: shown every time the dog's file is opened (סימבה asked for "בעת כניסה
+  // לתיק הכלב"; 19/11/2026). Once per opening — editing the note does not re-open it.
+  const alertNote = dog?.alertNote?.trim() || null;
+  const alertShownForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!alertNote || alertShownForRef.current === dogId) return;
+    alertShownForRef.current = dogId;
+    setShowAlertPopup(true);
+  }, [alertNote, dogId]);
+
+  const alertNoteMutation = useMutation({
+    mutationFn: (note: string) =>
+      fetch(`/api/service-dogs/${dogId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alertNote: note }),
+      }).then(async (r) => {
+        if (!r.ok) {
+          const err = await r.json().catch(() => null);
+          throw new Error(err?.error || "שגיאה בשמירת ההערה");
+        }
+        return r.json() as Promise<{ alertNote: string | null }>;
+      }),
+    onSuccess: (updated) => {
+      // The editor just wrote it — don't pop it up at them right away.
+      alertShownForRef.current = dogId;
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      setShowAlertEditor(false);
+      toast.success(updated?.alertNote ? "ההערה הקופצת נשמרה" : "ההערה הקופצת הוסרה");
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה בשמירת ההערה"),
   });
 
   if (isLoading) {
@@ -617,6 +657,20 @@ function ServiceDogProfilePageContent() {
                   </p>
                 </div>
               )}
+              {(perms.isOwner || perms.isManager) && (
+              <button
+                onClick={() => setShowAlertEditor(true)}
+                className={cn(
+                  "flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors",
+                  alertNote
+                    ? "text-amber-700 bg-amber-50 hover:bg-amber-100"
+                    : "text-petra-muted hover:text-amber-700 hover:bg-amber-50"
+                )}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                הערה קופצת
+              </button>
+              )}
               <button
                 onClick={() => setConfirmDelete(true)}
                 className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors"
@@ -626,6 +680,17 @@ function ServiceDogProfilePageContent() {
               </button>
             </div>
           </div>
+
+          {alertNote && (
+            <button
+              type="button"
+              onClick={() => setShowAlertPopup(true)}
+              className="mt-4 w-full flex items-start gap-2 text-right text-sm bg-amber-50 border border-amber-200 text-amber-900 rounded-lg px-3 py-2 hover:bg-amber-100 transition-colors"
+            >
+              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <span className="line-clamp-2 whitespace-pre-line break-words">{alertNote}</span>
+            </button>
+          )}
 
           {/* Stats Strip */}
           <div className={cn("grid gap-3 mt-5 pt-5 border-t", sdSettings.trackHours ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3")}>
@@ -765,6 +830,49 @@ function ServiceDogProfilePageContent() {
         </div>
       )}
 
+      {/* Pop-up note (הערה קופצת) */}
+      {showAlertPopup && alertNote && (
+        <div className="modal-overlay" onClick={() => setShowAlertPopup(false)}>
+          <div
+            className="modal-content max-w-md w-full p-0 overflow-hidden"
+            role="alertdialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-amber-50 border-b border-amber-200 px-5 py-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-amber-900">הערה חשובה</h3>
+                <p className="text-xs text-amber-700">{dog.pet.name}</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
+              <p className="text-sm text-petra-text whitespace-pre-line break-words">{alertNote}</p>
+            </div>
+            <div className="px-5 pb-5">
+              <button
+                autoFocus
+                className="btn-primary w-full bg-amber-500 hover:bg-amber-600 border-amber-500"
+                onClick={() => setShowAlertPopup(false)}
+              >
+                הבנתי
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAlertEditor && (
+        <AlertNoteEditorModal
+          initial={dog.alertNote ?? ""}
+          saving={alertNoteMutation.isPending}
+          onSave={(note) => alertNoteMutation.mutate(note)}
+          onClose={() => setShowAlertEditor(false)}
+        />
+      )}
+
       {/* Delete confirmation modal */}
       {confirmDelete && (
         <div className="modal-overlay" onClick={() => setConfirmDelete(false)}>
@@ -789,6 +897,84 @@ function ServiceDogProfilePageContent() {
         </div>
       )}
     </div>
+  );
+}
+
+const ALERT_NOTE_MAX = 1000;
+
+function AlertNoteEditorModal({
+  initial,
+  saving,
+  onSave,
+  onClose,
+}: {
+  initial: string;
+  saving: boolean;
+  onSave: (note: string) => void;
+  onClose: () => void;
+}) {
+  const [text, setText] = useState(initial);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const trimmed = text.trim();
+  return (
+    <>
+    <div className="modal-overlay" onClick={() => { if (!saving && !confirmClear) onClose(); }}>
+      <div className="modal-content max-w-md w-full p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-bold flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            הערה קופצת
+          </h3>
+          <button onClick={onClose} className="text-petra-muted hover:text-foreground" aria-label="סגור">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-xs text-petra-muted mb-2">
+          ההערה תקפוץ לכל מי שפותח את תיק הכלב (פעם אחת בכל כניסה למערכת) ותוצג בראש התיק.
+        </p>
+        <textarea
+          className="input min-h-[120px] text-sm"
+          value={text}
+          maxLength={ALERT_NOTE_MAX}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="למשל: הכלב מגיב לאופניים — לשמור מרחק בטיול"
+          autoFocus
+        />
+        <div className="text-[11px] text-petra-muted mt-1 text-left">{text.length}/{ALERT_NOTE_MAX}</div>
+        <div className="flex gap-2 mt-3">
+          <button
+            className="btn-primary flex-1"
+            disabled={saving || !trimmed || trimmed === initial.trim()}
+            onClick={() => onSave(trimmed)}
+          >
+            {saving ? "שומר..." : "שמור"}
+          </button>
+          {initial.trim() && (
+            <button
+              className="btn-secondary text-red-600"
+              disabled={saving}
+              onClick={() => setConfirmClear(true)}
+            >
+              הסר הערה
+            </button>
+          )}
+          <button className="btn-secondary" disabled={saving} onClick={onClose}>
+            ביטול
+          </button>
+        </div>
+      </div>
+    </div>
+      <ConfirmDialog
+        open={confirmClear}
+        title="להסיר את ההערה הקופצת?"
+        description="ההערה לא תוצג יותר בפתיחת תיק הכלב."
+        confirmLabel="הסר"
+        danger
+        loading={saving}
+        onConfirm={() => onSave("")}
+        onCancel={() => setConfirmClear(false)}
+      />
+    </>
   );
 }
 
@@ -3998,6 +4184,13 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
         })()}
       </div>
 
+      {/* Weight list (PetWeightEntry — also fed by "עדכון האכלה") */}
+      <WeightSection
+        petId={pet.id}
+        initialRows={5}
+        onChanged={() => queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dog.id] })}
+      />
+
       {/* Medications */}
       <div className="card p-5">
         <h3 className="font-semibold flex items-center gap-2 mb-3">
@@ -6244,12 +6437,13 @@ function SDFeedingModal({
   const latest = existingHistory[0];
   const today = new Date().toISOString().split("T")[0];
 
+  const initialWeight = (latest?.dogWeightKg ?? pet.weight)?.toString() ?? "";
   const [form, setForm] = useState({
     foodBrand: latest?.foodBrand ?? pet.foodBrand ?? "",
     foodType: latest?.foodType ?? "",
     foodGramsPerDay: (latest?.foodGramsPerDay ?? pet.foodGramsPerDay)?.toString() ?? "",
     foodFrequency: latest?.foodFrequency ?? pet.foodFrequency ?? "",
-    dogWeightKg: (latest?.dogWeightKg ?? pet.weight)?.toString() ?? "",
+    dogWeightKg: initialWeight,
     foodNotes: latest?.foodNotes ?? pet.foodNotes ?? "",
     date: today,
   });
@@ -6267,6 +6461,11 @@ function SDFeedingModal({
         ...(form.foodNotes.trim() && { foodNotes: form.foodNotes.trim() }),
       };
       const newHistory = [newEntry, ...existingHistory];
+      // A weight typed here (not just the pre-filled previous value) also lands in
+      // the weight list (PetWeightEntry); the server then sets Pet.weight to the
+      // newest entry, so the pet PATCH below leaves weight alone in that case.
+      const weightNum = form.dogWeightKg ? parseFloat(form.dogWeightKg) : NaN;
+      const addWeightEntry = Number.isFinite(weightNum) && weightNum > 0 && form.dogWeightKg !== initialWeight;
 
       const [r1] = await Promise.all([
         fetch(`/api/service-dogs/${dogId}`, {
@@ -6282,9 +6481,16 @@ function SDFeedingModal({
             foodGramsPerDay: form.foodGramsPerDay ? parseFloat(form.foodGramsPerDay) : null,
             foodFrequency: form.foodFrequency || null,
             foodNotes: form.foodNotes || null,
-            ...(form.dogWeightKg && { weight: parseFloat(form.dogWeightKg) }),
+            ...(form.dogWeightKg && !addWeightEntry && { weight: parseFloat(form.dogWeightKg) }),
           }),
         }),
+        addWeightEntry
+          ? fetch(`/api/pets/${petId}/weight`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ weight: weightNum, recordedAt: form.date || today, notes: "מעדכון האכלה" }),
+            }).then((r) => { if (!r.ok) toast.error("המשקל לא נשמר ברשימת המשקל"); })
+          : Promise.resolve(),
       ]);
       const d1 = await r1.json();
       if (!r1.ok) throw new Error(d1.error || "שגיאה");
@@ -6292,6 +6498,7 @@ function SDFeedingModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      queryClient.invalidateQueries({ queryKey: ["weight", petId] });
       onClose();
       toast.success("רשומת האכלה נוספה");
     },
@@ -6547,6 +6754,8 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vaccine-plan", dogId] });
       queryClient.invalidateQueries({ queryKey: ["service-dogs-vaccinations"] });
+      // a done dose is mirrored into DogHealth history (vaccination history list)
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
       setMarkingOpen(null);
       setMarkDate("");
       toast.success("טיפול עודכן");
@@ -6620,6 +6829,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
   // ── No plan yet: setup screen ──
   if (!hasPlan) {
     return (
+      <div className="space-y-4">
       <div className="card p-8 text-center space-y-5">
         <div className="w-12 h-12 rounded-2xl bg-sky-50 flex items-center justify-center mx-auto">
           <Pill className="w-6 h-6 text-sky-500" />
@@ -6670,6 +6880,8 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
         >
           {savePlanMutation.isPending ? "יוצר..." : "צור תוכנית חיסונים"}
         </button>
+      </div>
+      <VaccinationHistorySection dog={dog} dogId={dogId} vaccinePlan={vaccinePlan} />
       </div>
     );
   }
@@ -6989,6 +7201,203 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
             </table>
           </div>
         </div>
+      )}
+
+      <VaccinationHistorySection dog={dog} dogId={dogId} vaccinePlan={vaccinePlan} />
+    </div>
+  );
+}
+
+// ─── Vaccination history (DogHealth + every done plan dose) ───
+
+function VaccinationHistorySection({
+  dog,
+  dogId,
+  vaccinePlan,
+}: {
+  dog: ServiceDogDetail;
+  dogId: string;
+  vaccinePlan: VaccinePlan | undefined;
+}) {
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const todayYmd = new Date().toISOString().split("T")[0];
+  // validUntil is filled automatically from the type + date (defaultValidUntil) until the
+  // user edits it by hand; "חשב אוטומטית" brings the automatic value back.
+  const [validTouched, setValidTouched] = useState(false);
+  const [form, setForm] = useState<{ type: VaccinationType; date: string; validUntil: string }>({
+    type: "rabies",
+    date: todayYmd,
+    validUntil: defaultValidUntil("rabies", todayYmd) ?? "",
+  });
+  const autoValid = (type: VaccinationType, date: string) => defaultValidUntil(type, date) ?? "";
+
+  const records = buildVaccinationHistory(
+    dog.pet.health as unknown as Record<string, unknown> | null,
+    vaccinePlan ?? null,
+  );
+  const ROWS = 10;
+  const visible = showAll ? records : records.slice(0, ROWS);
+
+  const addMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${dog.pet.id}/health/renew-vaccine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vaccineType: form.type,
+          newDate: form.date,
+          ...(form.validUntil && { newValidUntil: form.validUntil }),
+        }),
+      }).then(async (r) => {
+        if (!r.ok) {
+          const err = await r.json().catch(() => null);
+          throw new Error(err?.error || "שגיאה ברישום");
+        }
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs-vaccinations"] });
+      setShowForm(false);
+      setValidTouched(false);
+      setForm({ type: form.type, date: todayYmd, validUntil: autoValid(form.type, todayYmd) });
+      toast.success("הרישום נוסף להיסטוריה");
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה ברישום"),
+  });
+
+  const invalidRange = !!form.validUntil && !!form.date && form.validUntil < form.date;
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h3 className="font-semibold flex items-center gap-2">
+          <Clock3 className="w-4 h-4 text-sky-500" />
+          היסטוריית חיסונים וטיפולים
+          {records.length > 0 && (
+            <span className="text-xs font-normal text-petra-muted">({records.length})</span>
+          )}
+        </h3>
+        <button
+          className="btn-secondary text-xs flex items-center gap-1 py-1 px-2"
+          onClick={() => setShowForm((v) => !v)}
+        >
+          <Plus className="w-3 h-3" />
+          הוסף רישום
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="mb-4 p-3 bg-slate-50 rounded-xl space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label className="label text-xs">סוג *</label>
+              <select
+                className="input text-sm"
+                value={form.type}
+                onChange={(e) => {
+                  const type = e.target.value as VaccinationType;
+                  setForm({ ...form, type, validUntil: validTouched ? form.validUntil : autoValid(type, form.date) });
+                }}
+              >
+                {VACCINATION_TYPES.map((t) => (
+                  <option key={t.key} value={t.key}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label text-xs">תאריך *</label>
+              <input
+                className="input text-sm"
+                type="date"
+                lang="he"
+                max={todayYmd}
+                value={form.date}
+                onChange={(e) => {
+                  const date = e.target.value;
+                  setForm({ ...form, date, validUntil: validTouched ? form.validUntil : autoValid(form.type, date) });
+                }}
+              />
+            </div>
+            <div>
+              <label className="label text-xs">
+                בתוקף עד {validTouched ? "(ידני)" : "(מחושב אוטומטית)"}
+              </label>
+              <input
+                className="input text-sm"
+                type="date"
+                lang="he"
+                value={form.validUntil}
+                onChange={(e) => {
+                  setValidTouched(true);
+                  setForm({ ...form, validUntil: e.target.value });
+                }}
+              />
+              {validTouched && (
+                <button
+                  type="button"
+                  className="text-[11px] text-brand-600 hover:underline mt-0.5"
+                  onClick={() => {
+                    setValidTouched(false);
+                    setForm({ ...form, validUntil: autoValid(form.type, form.date) });
+                  }}
+                >
+                  חשב אוטומטית
+                </button>
+              )}
+            </div>
+          </div>
+          {invalidRange && <p className="text-xs text-red-500">תאריך התוקף חייב להיות אחרי תאריך הטיפול</p>}
+          <p className="text-[11px] text-petra-muted">
+            תאריך חדש יותר מהרישום האחרון מעדכן את &quot;תאריך אחרון&quot; בתיק הכלב; תאריך ישן נשמר בהיסטוריה בלבד. התוקף מחושב אוטומטית לפי סוג הטיפול (כלבת, משושה ושעלת: שנה · תילוע: חצי שנה · תולעת הפארק וקרציות: 3 חודשים) ואפשר לשנות אותו. כדי לתקן את התוקף של הרישום האחרון, רשמו אותו שוב עם אותו תאריך ותוקף אחר.
+          </p>
+          <div className="flex gap-2">
+            <button
+              className="btn-primary text-xs py-1.5 flex-1"
+              disabled={!form.date || invalidRange || addMutation.isPending}
+              onClick={() => addMutation.mutate()}
+            >
+              {addMutation.isPending ? "שומר..." : "הוסף"}
+            </button>
+            <button className="btn-secondary text-xs py-1.5" onClick={() => setShowForm(false)}>
+              ביטול
+            </button>
+          </div>
+        </div>
+      )}
+
+      {records.length === 0 ? (
+        <p className="text-xs text-petra-muted text-center py-4">עדיין לא נרשמו חיסונים או טיפולים</p>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" dir="rtl">
+              <thead>
+                <tr className="border-b border-slate-100 text-xs text-petra-muted">
+                  <th className="text-right font-semibold py-2 px-2">סוג</th>
+                  <th className="text-right font-semibold py-2 px-2">תאריך</th>
+                  <th className="text-right font-semibold py-2 px-2">בתוקף עד</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((r) => (
+                  <tr key={`${r.type}-${r.date}`} className="border-b border-slate-50 last:border-0">
+                    <td className="py-2 px-2 font-medium text-petra-text whitespace-nowrap">{r.label}</td>
+                    <td className="py-2 px-2 text-petra-text whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td className="py-2 px-2 text-petra-muted whitespace-nowrap">{r.validUntil ? formatDate(r.validUntil) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {records.length > ROWS && (
+            <button className="mt-2 text-xs text-brand-600 hover:underline" onClick={() => setShowAll((v) => !v)}>
+              {showAll ? "הצג פחות" : `הצג הכל (${records.length})`}
+            </button>
+          )}
+        </>
       )}
     </div>
   );

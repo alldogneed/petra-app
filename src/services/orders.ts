@@ -77,6 +77,10 @@ export interface CreateOrderInput {
   trainingGroupId?: string | null;
   petId?: string | null;
   programType?: string | null;
+  // Link the order to the appointment / boarding stay it charges for (MCP create_order).
+  // Must belong to this business AND this customer — re-checked here.
+  relatedEntityType?: "Appointment" | "BoardingStay" | null;
+  relatedEntityId?: string | null;
 }
 
 export interface UpdateOrderData {
@@ -87,6 +91,17 @@ export interface UpdateOrderData {
   lines?: OrderLineInput[];
   discountType?: string;
   discountValue?: number;
+  // Offset-less = business-local wall clock (parseOrderDateTime); null clears.
+  startAt?: string | null;
+  endAt?: string | null;
+}
+
+export interface UpdateOrderOptions {
+  /**
+   * Also allow line replacement on a CONFIRMED order with no paid / pending payment and no
+   * (non-cancelled) invoice document (MCP update_order). Default = draft-only, as before.
+   */
+  allowUnpaidLineEdit?: boolean;
 }
 
 export interface CreateOrderResult {
@@ -171,6 +186,7 @@ export async function createOrder(
     customerId, orderType, startAt, endAt, lines, discountType, discountValue,
     notes, status, appointmentData, trainingSubType, trainingPackageId,
     trainingBoardingStart, trainingBoardingEnd, assignedToUserId, trainingGroupId, petId, programType,
+    relatedEntityType, relatedEntityId,
   } = input;
 
   // Input validation
@@ -191,6 +207,20 @@ export async function createOrder(
   if (notes && typeof notes === "string" && notes.length > 2000) {
     throw new ServiceError("הערות ארוכות מדי (מקסימום 2000 תווים)", "VALIDATION");
   }
+  // A meeting with an empty / bad time used to be written (order + program + appointment)
+  // and THEN crash ("Invalid time value") — the user retried and got duplicates (שחר, 15/11/2026).
+  if (appointmentData) {
+    const hhmm = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (!appointmentData.date || isNaN(new Date(appointmentData.date).getTime())) {
+      throw new ServiceError("יש לבחור תאריך לפגישה", "VALIDATION");
+    }
+    if (!hhmm.test(appointmentData.startTime ?? "") || !hhmm.test(appointmentData.endTime ?? "")) {
+      throw new ServiceError("יש לבחור שעת התחלה ושעת סיום לפגישה", "VALIDATION");
+    }
+    if (appointmentData.endTime <= appointmentData.startTime) {
+      throw new ServiceError("שעת הסיום חייבת להיות אחרי שעת ההתחלה", "VALIDATION");
+    }
+  }
 
   // IDOR checks
   const customerCheck = await db.customer.findFirst({ where: { id: customerId, businessId }, select: { id: true } });
@@ -202,6 +232,16 @@ export async function createOrder(
       select: { id: true, isActive: true },
     });
     if (!membership || !membership.isActive) throw new ServiceError("איש הצוות לא נמצא בעסק זה", "VALIDATION");
+  }
+
+  if (relatedEntityType || relatedEntityId) {
+    if (!relatedEntityId || (relatedEntityType !== "Appointment" && relatedEntityType !== "BoardingStay")) {
+      throw new ServiceError("קישור הזמנה לא תקין", "VALIDATION");
+    }
+    const linked = relatedEntityType === "Appointment"
+      ? await db.appointment.findFirst({ where: { id: relatedEntityId, businessId, customerId }, select: { id: true } })
+      : await db.boardingStay.findFirst({ where: { id: relatedEntityId, businessId, customerId }, select: { id: true } });
+    if (!linked) throw new ServiceError("התור / השהייה לא נמצאו אצל לקוח זה", "VALIDATION");
   }
 
   // IDOR checks for appointment-linked serviceId and petId
@@ -283,6 +323,7 @@ export async function createOrder(
       total: calc.total,
       notes: notes || null,
       assignedToUserId: assignedToUserId || null,
+      ...(relatedEntityType && relatedEntityId ? { relatedEntityType, relatedEntityId } : {}),
     },
   });
 
@@ -410,8 +451,8 @@ export async function createOrder(
             businessId,
             customerId,
             petId: trainingPetId,
-            checkIn: new Date(trainingBoardingStart),
-            checkOut: trainingBoardingEnd ? new Date(trainingBoardingEnd) : null,
+            checkIn: parseOrderDateTime(trainingBoardingStart) ?? new Date(trainingBoardingStart),
+            checkOut: trainingBoardingEnd ? (parseOrderDateTime(trainingBoardingEnd) ?? new Date(trainingBoardingEnd)) : null,
             status: "reserved",
             roomId: null,
             notes: notes || null,
@@ -470,7 +511,13 @@ export async function createOrder(
 // Update order
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function updateOrder(businessId: string, db: DbClient, id: string, data: UpdateOrderData) {
+export async function updateOrder(
+  businessId: string,
+  db: DbClient,
+  id: string,
+  data: UpdateOrderData,
+  opts: UpdateOrderOptions = {}
+) {
   const existing = await db.order.findFirst({ where: { id, businessId } });
   if (!existing) throw new ServiceError("Order not found", "NOT_FOUND");
 
@@ -489,7 +536,8 @@ export async function updateOrder(businessId: string, db: DbClient, id: string, 
   // Draft-only: line/discount editing. Rejected for any other status.
   const wantsLineEdit =
     data.lines !== undefined || data.discountType !== undefined || data.discountValue !== undefined;
-  if (wantsLineEdit && existing.status !== "draft") {
+  const unpaidEdit = !!opts.allowUnpaidLineEdit && existing.status === "confirmed";
+  if (wantsLineEdit && existing.status !== "draft" && !unpaidEdit) {
     throw new ServiceError("ניתן לערוך פריטים רק בהזמנה במצב טיוטה", "VALIDATION");
   }
 
@@ -498,6 +546,21 @@ export async function updateOrder(businessId: string, db: DbClient, id: string, 
   if (data.status !== undefined) updateData.status = data.status;
   if (data.notes !== undefined) updateData.notes = data.notes;
   if (data.orderType !== undefined) updateData.orderType = data.orderType;
+  if (data.startAt !== undefined || data.endAt !== undefined) {
+    const tzRow = await db.business.findUnique({ where: { id: businessId }, select: { timezone: true } });
+    const tz = tzRow?.timezone || "Asia/Jerusalem";
+    for (const key of ["startAt", "endAt"] as const) {
+      const raw = data[key];
+      if (raw === undefined) continue;
+      if (raw === null || raw === "") { updateData[key] = null; continue; }
+      const parsed = parseOrderDateTime(raw, tz);
+      if (!parsed) throw new ServiceError(key === "startAt" ? "תאריך התחלה לא תקין" : "תאריך סיום לא תקין", "VALIDATION");
+      updateData[key] = parsed;
+    }
+    const start = updateData.startAt !== undefined ? updateData.startAt : existing.startAt;
+    const end = updateData.endAt !== undefined ? updateData.endAt : existing.endAt;
+    if (start && end && end < start) throw new ServiceError("תאריך הסיום לפני תאריך ההתחלה", "VALIDATION");
+  }
 
   if (wantsLineEdit) {
     const lines = data.lines;
@@ -553,12 +616,43 @@ export async function updateOrder(businessId: string, db: DbClient, id: string, 
     // `existing.status` above is read-then-act and a concurrent confirm could land
     // in between; this shrinks the race to a single statement (no $transaction —
     // Supabase PgBouncer).
+    // Payments recorded on the linked stay / appointment (no orderId) are attributed to this
+    // order by the balance code — they count as "paid" too (security review M3).
+    if (unpaidEdit && existing.relatedEntityId && (existing.relatedEntityType === "BoardingStay" || existing.relatedEntityType === "Appointment")) {
+      const linkedPaid = await db.payment.count({
+        where: {
+          businessId,
+          status: { in: ["paid", "pending"] },
+          ...(existing.relatedEntityType === "BoardingStay"
+            ? { boardingStayId: existing.relatedEntityId }
+            : { appointmentId: existing.relatedEntityId }),
+        },
+      });
+      if (linkedPaid > 0) {
+        throw new ServiceError("יש תשלום על השהייה / התור המקושר — לא ניתן להחליף את פריטי ההזמנה", "CONFLICT");
+      }
+    }
+
     const draftClaim = await db.order.updateMany({
-      where: { id, businessId, status: "draft" },
+      where: unpaidEdit
+        ? {
+            id,
+            businessId,
+            updatedAt: existing.updatedAt, // CAS: a concurrent edit makes this claim fail (review L1)
+            status: { in: ["draft", "confirmed"] },
+            payments: { none: { status: { in: ["paid", "pending"] } } },
+            invoiceDocuments: { none: { status: { not: "cancelled" } } },
+          }
+        : { id, businessId, status: "draft", updatedAt: existing.updatedAt },
       data: { updatedAt: new Date() },
     });
     if (draftClaim.count === 0) {
-      throw new ServiceError("ניתן לערוך פריטים רק בהזמנה במצב טיוטה", "CONFLICT");
+      throw new ServiceError(
+        unpaidEdit
+          ? "ניתן להחליף פריטים רק בהזמנה שלא שולמה (אין תשלום שולם / ממתין ואין מסמך חשבונאי)"
+          : "ניתן לערוך פריטים רק בהזמנה במצב טיוטה",
+        "CONFLICT"
+      );
     }
 
     // Lines are value objects — delete + recreate. Single createMany keeps the

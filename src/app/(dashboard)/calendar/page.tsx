@@ -127,6 +127,13 @@ type ViewMode = "day" | "week" | "month" | "agenda";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
+/** Throws the server's error message (and code) instead of a bare "Failed". */
+async function throwServerError(r: Response) {
+  if (r.ok) return r.json();
+  const d = await r.json().catch(() => ({} as { error?: string; code?: string }));
+  throw Object.assign(new Error(d?.error || "Failed"), { code: d?.code });
+}
+
 const HOURS = Array.from({ length: 13 }, (_, i) => i + 8);
 const DAYS_HE = [
   "ראשון",
@@ -544,19 +551,13 @@ function NewAppointmentModal({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...data, repeatEvery, occurrences }),
-        }).then((r) => {
-          if (!r.ok) throw new Error("Failed");
-          return r.json();
-        });
+        }).then(throwServerError);
       }
       return fetch("/api/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-        return r.json();
-      });
+      }).then(throwServerError);
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
@@ -595,9 +596,12 @@ function NewAppointmentModal({
       });
       setPickedCustomer(null);
     },
-    onError: (err: Error) => {
-      if (err.message?.includes("מוגבל") || err.message?.includes("50")) {
+    onError: (err: Error & { code?: string }) => {
+      if (err.code === "LIMIT_REACHED" || err.message?.includes("מוגבל")) {
         toast.error("הגעת למגבלת הפגישות — שדרג לבייסיק כדי להוסיף עוד");
+      } else if (/[\u0590-\u05FF]/.test(err.message ?? "")) {
+        // The server's Hebrew reason (conflict, validation) — was always swallowed before.
+        toast.error(err.message);
       } else {
         toast.error("שגיאה בקביעת התור. נסה שוב.");
       }

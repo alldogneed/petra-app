@@ -70,6 +70,29 @@ export function buildContactPayload(lead: LeadForContact): ContactPayload {
  * A business can have several owners and only one of them may have connected Google —
  * so we look for the connected ones, never "the first owner".
  */
+/** Google's error status + message only (no request data, capped) — for diagnosing 401/403s. */
+async function googleErrorText(res: Response): Promise<string> {
+  try {
+    const j = (await res.json()) as { error?: { status?: string; message?: string } };
+    return `${j.error?.status ?? ""} ${j.error?.message ?? ""}`.slice(0, 300);
+  } catch {
+    return "";
+  }
+}
+
+/** Scopes / remaining lifetime of an access token (never the token, never the email). */
+async function tokenDiagnostics(accessToken: string): Promise<string> {
+  try {
+    const r = await fetch(`${GOOGLE_TOKEN_INFO_URL}?access_token=${encodeURIComponent(accessToken)}`);
+    const j = (await r.json()) as { scope?: string; expires_in?: string | number; error_description?: string; error?: string; aud?: string };
+    if (!r.ok) return `tokeninfo ${r.status} ${j.error ?? ""} ${j.error_description ?? ""}`.slice(0, 200);
+    const scopes = (j.scope ?? "").split(" ").map((x) => x.replace("https://www.googleapis.com/auth/", "")).join(",");
+    return `scopes=[${scopes}] expires_in=${j.expires_in ?? "?"} aud=…${String(j.aud ?? "").slice(-12)} tokenLen=${accessToken.length}`;
+  } catch (e) {
+    return `tokeninfo failed: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200);
+  }
+}
+
 async function getOwnerAccessToken(businessId: string): Promise<string | null> {
   const owners = await prisma.businessUser.findMany({
     where: {
@@ -118,7 +141,7 @@ async function createContact(payload: ContactPayload, accessToken: string): Prom
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    console.error(`[GoogleContacts] createContact failed (${res.status})`);
+    console.error(`[GoogleContacts] createContact failed (${res.status}) ${await googleErrorText(res)}`);
     return null;
   }
   const data = (await res.json()) as { resourceName?: string };
@@ -140,7 +163,7 @@ async function updateContact(
   const metaRes = await fetch(`${PEOPLE_API_BASE}/${resourceName}?personFields=metadata`, { headers });
   if (metaRes.status === 404) return "gone";
   if (!metaRes.ok) {
-    console.error(`[GoogleContacts] contact lookup failed (${metaRes.status})`);
+    console.error(`[GoogleContacts] contact lookup failed (${metaRes.status}) ${await googleErrorText(metaRes)}`);
     return null;
   }
   const meta = (await metaRes.json()) as { etag?: string };
@@ -156,7 +179,7 @@ async function updateContact(
   );
   if (res.status === 404) return "gone";
   if (!res.ok) {
-    console.error(`[GoogleContacts] updateContact failed (${res.status})`);
+    console.error(`[GoogleContacts] updateContact failed (${res.status}) ${await googleErrorText(res)}`);
     return null;
   }
   const data = (await res.json()) as { resourceName?: string };
@@ -211,10 +234,11 @@ export async function syncLeadToGoogleContacts(businessId: string, leadId: strin
 // ─── Bulk sync of existing leads ─────────────────────────────────────────────
 
 /** Leads that were never written to Google Contacts and have something to write. */
-const PENDING_LEADS_WHERE = (businessId: string) => ({
+const PENDING_LEADS_WHERE = (businessId: string, createdAfter?: Date) => ({
   businessId,
   googleContactId: null,
   OR: [{ phone: { not: null } }, { email: { not: null } }],
+  ...(createdAfter ? { createdAt: { gte: createdAfter } } : {}),
 });
 
 /** People API caps batchCreateContacts at 200; 50 keeps one request well inside the function timeout. */
@@ -233,7 +257,14 @@ export type BulkContactSyncResult =
  * batch call). The caller repeats until `remaining` is 0. Leads that already have a
  * contact are never touched here — edits keep flowing through syncLeadToGoogleContacts.
  */
-export async function syncPendingLeadsToGoogleContacts(businessId: string): Promise<BulkContactSyncResult> {
+/**
+ * `createdAfter` (cron safety net) limits the chunk to recent leads — the owner's history
+ * backfill stays a choice made with the "סנכרן לידים קיימים" button.
+ */
+export async function syncPendingLeadsToGoogleContacts(
+  businessId: string,
+  opts: { createdAfter?: Date } = {},
+): Promise<BulkContactSyncResult> {
   const business = await prisma.business.findUnique({
     where: { id: businessId },
     select: { googleContactsSync: true },
@@ -244,7 +275,7 @@ export async function syncPendingLeadsToGoogleContacts(businessId: string): Prom
   if (!accessToken) return { ok: false, reason: "not_connected" };
 
   const leads = await prisma.lead.findMany({
-    where: PENDING_LEADS_WHERE(businessId),
+    where: PENDING_LEADS_WHERE(businessId, opts.createdAfter),
     select: { id: true, name: true, phone: true, email: true, notes: true, requestedService: true, city: true },
     orderBy: { createdAt: "asc" },
     take: BULK_CHUNK,
@@ -260,7 +291,8 @@ export async function syncPendingLeadsToGoogleContacts(businessId: string): Prom
     }),
   });
   if (!res.ok) {
-    console.error(`[GoogleContacts] batchCreateContacts failed (${res.status})`);
+    console.error(`[GoogleContacts] batchCreateContacts failed (${res.status}) ${await googleErrorText(res)}`);
+    if (res.status === 401 || res.status === 403) console.error(`[GoogleContacts] token diagnostics: ${await tokenDiagnostics(accessToken)}`);
     return { ok: false, reason: "google_error" };
   }
 
@@ -279,6 +311,6 @@ export async function syncPendingLeadsToGoogleContacts(businessId: string): Prom
     );
   }
 
-  const remaining = await countLeadsPendingContactSync(businessId);
+  const remaining = await prisma.lead.count({ where: PENDING_LEADS_WHERE(businessId, opts.createdAfter) });
   return { ok: true, synced: updates.length, failed: leads.length - updates.length, remaining };
 }

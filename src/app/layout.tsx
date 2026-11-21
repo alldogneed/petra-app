@@ -104,6 +104,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: "#1e293b",
+  // Petra has no dark theme: "only light" opts out of the browser's automatic darkening
+  // (Chrome auto dark mode turned the boarding timeline black and hid the dog names, 18/11/2026).
+  colorScheme: "only light",
 };
 
 export default function RootLayout({

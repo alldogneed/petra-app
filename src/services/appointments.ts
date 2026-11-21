@@ -45,6 +45,8 @@ export interface UpdateAppointmentInput {
   endTime?: string;
   serviceId?: string;
   priceListItemId?: string;
+  /** Dog of the appointment. Must belong to this business AND to the appointment's customer; null clears it. */
+  petId?: string | null;
 }
 
 export interface RecurringAppointmentInput {
@@ -156,7 +158,7 @@ export async function createAppointment(
   // Appointment limit check
   if (opts.maxAppointments !== null && opts.maxAppointments !== undefined) {
     const totalCount = await db.appointment.count({
-      where: { businessId, status: { notIn: ["CANCELED"] } },
+      where: { businessId, status: { notIn: ["canceled", "CANCELED"] } },
     });
     if (totalCount >= opts.maxAppointments) {
       throw new ServiceError(
@@ -238,6 +240,30 @@ export async function updateAppointment(businessId: string, db: DbClient, id: st
     });
     if (!pli) throw new ServiceError("פריט מחירון לא נמצא", "VALIDATION");
     data.priceListItemId = input.priceListItemId;
+  }
+  if (input.petId !== undefined) {
+    if (input.petId === null) {
+      data.petId = null;
+    } else {
+      // IDOR + consistency: the dog must be this business's AND this customer's.
+      const pet = await db.pet.findFirst({
+        where: { id: input.petId, OR: [{ customer: { businessId } }, { businessId }] },
+        select: { id: true, customerId: true },
+      });
+      if (!pet) throw new ServiceError("חיית מחמד לא נמצאה", "NOT_FOUND");
+      if (pet.customerId !== existing.customerId) {
+        throw new ServiceError("חיית המחמד שייכת ללקוח אחר", "VALIDATION");
+      }
+      // A training-package meeting belongs to the program's dog (rule #45).
+      const linked = await db.trainingProgramSession.findFirst({
+        where: { appointmentId: id, program: { businessId } },
+        select: { program: { select: { dogId: true } } },
+      });
+      if (linked?.program.dogId && linked.program.dogId !== input.petId) {
+        throw new ServiceError("התור משויך לתוכנית אילוף של כלב אחר", "VALIDATION");
+      }
+      data.petId = input.petId;
+    }
   }
 
   const updated = await db.appointment.update({

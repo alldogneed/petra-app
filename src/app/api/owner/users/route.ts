@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
 }
 
 const CreateUserSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email(),
   name: z.string().min(1).max(100),
   password: z.string().min(8),
   platformRole: z.enum(["super_admin", "admin", "support"]).optional().nullable(),

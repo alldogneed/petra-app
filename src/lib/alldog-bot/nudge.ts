@@ -9,6 +9,7 @@
  *   tells the rep, and the bot collects only what is missing (partialResumeNote).
  * Kill switch: ALLDOG_BOT_NUDGE_ENABLED=false. Never throws; every send is claimed first.
  */
+import { asksForPhoneCall } from "@/lib/alldog-bot/reply-hygiene";
 import prisma from "@/lib/prisma";
 import { claimOnce } from "@/lib/rate-limit";
 import { maskPhone } from "@/lib/whatsapp-failure";
@@ -117,6 +118,8 @@ async function sendNudge(conv: Conv, messages: NudgeMessage[], anchorId: string)
   // Item 42: the voice-note reminder is Hebrew — not in a conversation in another language.
   const userTexts = messages.filter((m) => m.role === "user").map(customerWords).filter((t): t is string => !!t);
   if (detectLanguage(userTexts) !== "he") used.push(VOICE_NUDGE);
+  // Item 43 (Mina 13/11): someone who asked to talk on the phone is not offered a voice note.
+  if (userTexts.some((t) => asksForPhoneCall(t))) used.push(VOICE_NUDGE);
   const text = pickNudge(await typedFirstName(conv, messages), used, anchorId);
   if (!text) return "skipped"; // every reminder text was used in this conversation → only the closing follows
   if (!(await claimOnce(`alldog-bot-nudge:${anchorId}`, 7 * 24 * 60 * 60))) return "skipped";

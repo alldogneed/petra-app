@@ -7,6 +7,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
 import { appointmentConfirmationChain, bookingDeclinedChain } from "@/lib/reminder-service";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { utcToLocalDateStr, utcToLocalHHMM } from "@/lib/slots";
 
 export async function PATCH(
   request: NextRequest,
@@ -92,10 +93,12 @@ export async function PATCH(
         }
       } else if (booking.serviceId || booking.priceListItemId) {
         // For service- and price-list-based bookings alike: create an Appointment
-        const pad = (n: number) => n.toString().padStart(2, "0");
-        const startTime = `${pad(startAt.getHours())}:${pad(startAt.getMinutes())}`;
-        const endTime = `${pad(endAt.getHours())}:${pad(endAt.getMinutes())}`;
-        const dateOnly = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate());
+        // Local calendar day (00:00Z) + local "HH:mm" — getHours() on the UTC server was 2–3h early.
+        const biz = await prisma.business.findUnique({ where: { id: booking.businessId }, select: { timezone: true } });
+        const tz = biz?.timezone || "Asia/Jerusalem";
+        const startTime = utcToLocalHHMM(startAt, tz);
+        const endTime = utcToLocalHHMM(endAt, tz);
+        const dateOnly = new Date(`${utcToLocalDateStr(startAt, tz)}T00:00:00.000Z`);
 
         const existingAppt = await prisma.appointment.findFirst({
           where: {

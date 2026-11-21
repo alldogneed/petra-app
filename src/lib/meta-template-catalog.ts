@@ -169,6 +169,17 @@ export const PETRA_TEMPLATE_CATALOG: readonly CatalogTemplate[] = [
     examples: ["נדב מאמן הכלבים", "תזכורת לתור", "דנה · 054-*-964", "הלקוח מחוץ לחלון 24 השעות", "לשלוח בתבנית מאושרת", "https://petra-app.com/owner/tenants/abc123"],
     params: ["business name", "flow label", "customer (name · masked phone)", "Hebrew reason", "Hebrew fix", "admin URL"],
   },
+  {
+    // Settings → אינטגרציות "שלח הודעת בדיקה": free text never reaches a number that did not
+    // write to us in 24h (131047) — the test needs an approved template (16/11/2026).
+    name: "petra_connection_test",
+    category: "UTILITY",
+    language: "he",
+    body: "זוהי הודעת בדיקה ממערכת פטרה עבור {{1}}. אם קיבלת אותה, הודעות הוואטסאפ האוטומטיות של העסק מגיעות למספר הזה.",
+    examples: ["נדב מאמן הכלבים"],
+    footer: FOOTER,
+    params: ["business name"],
+  },
 ];
 
 /** Meta create-template request body for one catalog entry. */

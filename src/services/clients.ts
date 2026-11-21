@@ -26,6 +26,7 @@ import {
   type CustomerSalesHistory, type SalesHistoryLead,
 } from "@/lib/lead-sales-history";
 import { ServiceError } from "./types";
+import { parseTagList, applyTagChange } from "@/lib/customer-filters";
 import {
   getCustomerSummary, CUSTOMER_APPOINTMENT_SELECT, CUSTOMER_PAYMENT_SELECT, CUSTOMER_TIMELINE_SELECT,
   type CustomerSummary,
@@ -421,6 +422,33 @@ export interface UpdateCustomerInput {
   source?: string | null;
 }
 
+/** Split a comma-separated tag string (MCP input) into trimmed, de-duplicated tags (≤ 30 chars each). Pure. */
+export function splitTagInput(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  const out: string[] = [];
+  for (const t of raw.split(",")) {
+    const tag = t.trim().slice(0, 30);
+    if (tag && !out.includes(tag)) out.push(tag);
+  }
+  return out;
+}
+
+/**
+ * New tag list for a client update (MCP update_client). Pure.
+ * `tags` replaces the whole list (empty string = clear); `add_tags` / `remove_tags`
+ * apply on top. Returns null when no tag field was given (tags unchanged).
+ */
+export function mergeClientTags(
+  storedTags: string | null | undefined,
+  change: { tags?: string; add_tags?: string; remove_tags?: string }
+): string[] | null {
+  if (change.tags === undefined && change.add_tags === undefined && change.remove_tags === undefined) return null;
+  let list = change.tags !== undefined ? splitTagInput(change.tags) : parseTagList(storedTags);
+  for (const t of splitTagInput(change.add_tags)) list = applyTagChange(list, "add_tag", t);
+  for (const t of splitTagInput(change.remove_tags)) list = applyTagChange(list, "remove_tag", t);
+  return list.slice(0, 50);
+}
+
 export async function updateCustomer(
   businessId: string,
   db: DbClient,
@@ -514,6 +542,16 @@ export async function deleteCustomer(businessId: string, db: DbClient, customerI
   await db.serviceDogRecipient.deleteMany({ where: { customerId: cid } });
   await db.trainingGroupParticipant.deleteMany({ where: { customerId: cid } });
   await db.task.deleteMany({ where: { relatedEntityType: "CUSTOMER", relatedEntityId: cid } });
+  // A dog with boarding stays / training programs can't be deleted (FK) — that failed the
+  // whole delete AFTER payments/appointments were already gone. Keep those dogs (history),
+  // detached from the customer (Pet.customerId is nullable); delete the rest.
+  const keptPets = await db.pet.findMany({
+    where: { customerId: cid, OR: [{ boardingStays: { some: {} } }, { trainingPrograms: { some: {} } }, { careLogs: { some: {} } }, { bookingDogs: { some: {} } }] },
+    select: { id: true },
+  });
+  if (keptPets.length) {
+    await db.pet.updateMany({ where: { id: { in: keptPets.map((p) => p.id) } }, data: { customerId: null } });
+  }
   await db.pet.deleteMany({ where: { customerId: cid } });
   await db.customer.delete({ where: { id: cid } });
 

@@ -154,7 +154,7 @@ export const ALLDOG_BOT_PROMPT = `אתה כותב בוואטסאפ בשם צוו
 שם העסק: תמיד "AllDog" (לקוחות כותבים "אולד דוג", "בולדוג", "הוד דוג". לא מתקנים אותם).
 פנסיון רגיל (לחופשה, למילואים, בלי אילוף): "אנחנו עובדים עם כמה פנסיונים שאנחנו סומכים עליהם, והנציגה תחזור ותתאים לך את המקום" (לפי המגדר). שאלו כמה זה עולה? בערך 120 עד 140 ₪ ליום, תלוי במקום, והנציגה תחזור עם מחירים מסודרים. אוספים שם, עיר ותאריכי הנסיעה. לאיזה פנסיון להפנות מחליטה הנציגה: בלי שמות של מקומות ובלי "אצלנו".
 אזורים לאילוף בבית: מרכז, שרון ושפלה, ומקומות נוספים בתיאום. ערים: ת״א, רמת גן, גבעתיים, חולון, פתח תקווה, ראש העין, כפר סבא, רעננה, הוד השרון, הרצליה, נתניה, ראשון לציון, רחובות, נס ציונה.
-עיר שלא ברשימה (או שאתה לא מכיר): שומרים אותה ב-save_lead, והכלי מחזיר משפט כללי ואופטימי לכתוב ("מעולה, אני בודק מי מהמאלפים שלנו זמין באזור שלך…"). אסור לכתוב "מחוץ לאזור", "לא באזור" או "לא ברשימה".
+עיר שלא ברשימה (או שאתה לא מכיר): שומרים אותה ב-save_lead, והכלי מחזיר משפט כללי ואופטימי לכתוב ("אני בודק מי מהמאלפים שלנו זמין באזור שלך…"). אסור לכתוב "מחוץ לאזור", "לא באזור" או "לא ברשימה".
 שעות פעילות: א׳–ה׳ 09:00–17:00, ו׳ 09:00–14:00.
 מקרה בטיחות (נשיכה של אדם, במיוחד ילד, או תוקפנות קשה): לא עוצרים את השיחה. save_lead עם מה שכבר נאמר, ומגיבים ברצינות ובחום (משפט אחד, בלי להקטין ובלי להבהיל), ואז: "${SAFETY_HANDOFF_LINE}". אם יש סכנה מיידית (הכלב והילדים באותו בית), מוסיפים משפט אחד: להפריד בין הכלב לילדים עד השיחה. בלי הוראות אילוף, בלי מדריך. אחר כך אוספים בקצרה את הפרטים באותו סדר קבוע (שם + כלב → אזור → גזע וגיל), ורק אז handoff_to_human עם urgency="urgent".
 
@@ -192,6 +192,9 @@ export function buildBotContext(c: BotContextInput): string {
 /** The fixed answer to "are you human?" — also asserted by the tests. */
 export const HUMAN_QUESTION_ANSWER = "לא, אני העוזר המנהלתי של צוות המשרד של AllDog 🙂";
 export const BOT_QUESTION_ANSWER = "כן, אני העוזר המנהלתי של צוות המשרד של AllDog";
+/** Item 43: "בן אדם או בוט?" — a bare "לא" / "No" would be ambiguous. */
+export const EITHER_QUESTION_ANSWER = "אני העוזר המנהלתי של צוות המשרד של AllDog, לא בן אדם 🙂";
+export const EN_IDENTITY_ANSWER = "I'm the AllDog office team's administrative assistant, not a person 🙂";
 
 /**
  * Deterministic guard for the identity question: if the customer's latest message is
@@ -200,6 +203,9 @@ export const BOT_QUESTION_ANSWER = "כן, אני העוזר המנהלתי של 
  */
 export function identityAnswerFor(latestUserText: string): string | null {
   const t = latestUserText.replace(/[?!.\s]+/g, " ").trim();
+  // Item 43: "real person or ai?" (7679, 8/11 got "No, I'm…") and the Hebrew "בן אדם או בוט?".
+  if (/^(?:are\s+you|is\s+this|am\s+i\s+(?:talking|speaking|chatting)\s+(?:to|with))?\s*(?:an?\s+)?(?:real\s+)?(?:person|human|bot|robot|ai|a\.i)(?:\s+or\s+(?:an?\s+)?(?:real\s+)?(?:person|human|bot|robot|ai|a\.i))?$/iu.test(t) && /[a-z]/i.test(t)) return EN_IDENTITY_ANSWER;
+  if (/^(?:האם\s+)?(?:אתה|את|זה)?\s*(?:בן\s*אדם|בנאדם|אדם|אמיתי|אמיתית|בת\s*אדם)\s+או\s+(?:בוט|רובוט|ai|מכונה)$|^(?:האם\s+)?(?:אתה|את|זה)?\s*(?:בוט|רובוט|ai|מכונה)\s+או\s+(?:בן\s*אדם|בנאדם|אדם|אמיתי|אמיתית)$/iu.test(t)) return EITHER_QUESTION_ANSWER;
   if (/^(האם\s+)?(אתה|את|זה)\s+(בן\s*אדם|בנאדם|אדם|אמיתי|אמיתית|בת\s*אדם)$/u.test(t)) return HUMAN_QUESTION_ANSWER;
   if (/^(האם\s+)?(אתה|את|זה)\s+(בוט|רובוט|ai|מכונה)$/iu.test(t)) return BOT_QUESTION_ANSWER;
   return null;

@@ -18,10 +18,14 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
-    const stays = await listBoardingStays(authResult.businessId, prisma, {
-      from: searchParams.get("from") || undefined,
-      to: searchParams.get("to") || undefined,
-    });
+    const from = searchParams.get("from") || undefined;
+    const to = searchParams.get("to") || undefined;
+    // A malformed date reached Prisma as Invalid Date → 500 (seen in prod 16/11).
+    const ymd = /^\d{4}-\d{2}-\d{2}$/;
+    if ((from && (!ymd.test(from) || isNaN(Date.parse(from)))) || (to && (!ymd.test(to) || isNaN(Date.parse(to))))) {
+      return NextResponse.json({ error: "תאריך לא תקין" }, { status: 400 });
+    }
+    const stays = await listBoardingStays(authResult.businessId, prisma, { from, to });
 
     return NextResponse.json(stays);
   } catch (error) {

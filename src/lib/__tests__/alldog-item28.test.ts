@@ -90,7 +90,7 @@ describe("28b — city outside the list", () => {
   });
 
   it("Or's optimistic line, by gender, and the lead note", () => {
-    expect(unknownAreaLine("m")).toBe("מעולה, אני בודק מי מהמאלפים שלנו זמין באזור שלך, והנציגה תחזור אליך עם תשובה 🙂");
+    expect(unknownAreaLine("m")).toBe("אני בודק מי מהמאלפים שלנו זמין באזור שלך, והנציגה תחזור אליך עם תשובה 🙂");
     expect(unknownAreaLine("f")).toContain("תחזור אלייך עם תשובה");
     expect(unknownAreaLine("unknown")).toContain("תחזור בטלפון עם תשובה");
     expect(areaToCheckNote(" קריית  שמונה ")).toBe("[וואטסאפ · בוט] אזור לבדיקה: קריית שמונה");

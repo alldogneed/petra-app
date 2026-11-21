@@ -3,7 +3,7 @@ import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, useRef, useCallback, memo } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, memo } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -61,8 +61,31 @@ import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 import { usePermissions } from "@/hooks/usePermissions";
-import { staysOverlap, israelDayKey } from "@/lib/boarding-overlap";
+import { staysOverlap, staysShareNight, israelDayKey } from "@/lib/boarding-overlap";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  buildStayMovePatch,
+  dragDayDelta,
+  isStayDraggable,
+  shiftIsoByIsraelDays,
+  UNASSIGNED_ROW,
+  type StayMovePatch,
+} from "@/lib/boarding-drag";
 import { normalizeHebrewPunct } from "@/lib/text-variants";
+import { packLanes, type LaneLayout } from "@/lib/timeline-lanes";
+import {
+  addDayKey,
+  dayKeyDiff,
+  dayKeyWeekday,
+  extendWindowForScroll,
+  firstWeekdayIndex,
+  monthSegments,
+  scrollLeftForDay,
+  windowAround,
+  windowContains,
+  TL_EXTEND_THRESHOLD_DAYS,
+  type DayWindow,
+} from "@/lib/timeline-window";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -152,7 +175,6 @@ type TabKey = "active" | "checkin_today" | "checkout_today" | "history";
 type ViewMode = "grid" | "timeline" | "calendar";
 
 const HE_DAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
-const TIMELINE_DAYS = 14;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -197,22 +219,6 @@ function isOverdue(stay: BoardingStay, checkOutTime: string): boolean {
   return Date.now() > checkOutDate.getTime();
 }
 
-
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
-function startOfDay(date: Date): Date {
-  const result = new Date(date);
-  result.setHours(0, 0, 0, 0);
-  return result;
-}
-
-function diffDays(a: Date, b: Date): number {
-  return Math.round((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
-}
 
 /** Normalised search text: geresh/gershayim variants unified, lowercase. */
 function normSearch(s: string): string {
@@ -278,6 +284,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
   occPeriodStays,
   sortedStayIds,
   highlight = false,
+  canDrag = false,
 }: {
   room: Room;
   onCheckin: (id: string) => void;
@@ -288,8 +295,10 @@ const RoomStatusCard = memo(function RoomStatusCard({
   sortedStayIds: string[];
   /** A search is active and this room has a matching stay */
   highlight?: boolean;
+  /** Stay cards can be dragged between rooms (BOARDING_MANAGE). */
+  canDrag?: boolean;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: room.id });
+  const { setNodeRef, isOver } = useDroppable({ id: room.id, disabled: !canDrag });
   const displayStatus = getRoomDisplayStatus(room);
   const statusConfig = ROOM_STATUS_MAP[displayStatus];
 
@@ -357,7 +366,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
             {displayCheckedIn.map((stay) => {
               const actionStay = checkedIn.find(s => s.id === stay.id);
               return (
-                <SortableStayInRoom key={stay.id} stayId={stay.id}>
+                <SortableStayInRoom key={stay.id} stayId={stay.id} disabled={!canDrag}>
                   <div className="p-2 rounded-lg" style={{ background: "#FFF7ED", border: "1px solid #FDBA74" }}>
                     <div className="flex items-center gap-1 mb-1">
                       <PawPrint className="w-3 h-3 text-orange-500 flex-shrink-0" />
@@ -394,7 +403,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
             {displayReserved.map((stay) => {
               const actionStay = reserved.find(s => s.id === stay.id);
               return (
-                <SortableStayInRoom key={stay.id} stayId={stay.id}>
+                <SortableStayInRoom key={stay.id} stayId={stay.id} disabled={!canDrag}>
                   <div className="p-2 rounded-lg" style={{ background: "#F5F3FF", border: "1px solid #C4B5FD" }}>
                     <div className="flex items-center gap-1 mb-1">
                       <PawPrint className="w-3 h-3 text-purple-500 flex-shrink-0" />
@@ -628,46 +637,236 @@ function OccupancyCalendar({
 }
 
 // ─── Timeline / Gantt View ──────────────────────────────────────────────────
+// Continuous horizontal scroll (גבעת הכלבים 18/11/2026): a wide window of fixed-width
+// day columns (60 days back, 180 ahead of the anchor) that grows as the user nears
+// either end (`src/lib/timeline-window.ts`). Room column + header row stay sticky.
 
 const TL_DAY_W = 44; // px per day column
+const TL_DAY_W_COMPACT = 28;
 const TL_ROOM_W = 140; // px for the sticky room-name column
+const TL_ROOM_W_NARROW = 96; // phones (< 640px)
+const TL_ROOM_W_COMPACT = 104;
+const TL_ROOM_W_COMPACT_NARROW = 72;
 const TL_ROW_H = 26; // px per stacked bar
+const TL_ROW_H_COMPACT = 18;
+const TL_BAR_H = 22;
+const TL_BAR_H_COMPACT = 14;
+const TL_ROW_MIN = 48;
+const TL_ROW_MIN_COMPACT = 24;
+const TL_PAN_THRESHOLD = 3; // px before a mouse press on empty grid becomes a pan
+const TL_COMPACT_STORAGE_KEY = "petra.boarding.timelineCompact";
+
+/** A request to scroll the timeline to a day ("YYYY-MM-DD"); bump `n` to repeat the same day. */
+interface TimelineScrollRequest {
+  day: string;
+  n: number;
+}
 
 /** "YYYY-MM-DD" of a local Date (the timeline's own day columns). */
 function localDayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Whole days from key a to key b (b - a). */
-function dayKeyDiff(a: string, b: string): number {
-  const [ay, am, ad] = a.split("-").map(Number);
-  const [by, bm, bd] = b.split("-").map(Number);
-  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
+/** Day + time label for the move confirmation ("12.11, 14:00"). */
+function formatDateTimeShort(iso: string): string {
+  return new Date(iso).toLocaleString("he-IL", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
 }
+
+/** Live drag state of a timeline bar (only while a drag is active). */
+interface TimelineDrag {
+  stayId: string;
+  originRow: string;
+  targetRow: string;
+  dayDelta: number;
+}
+
+interface TimelinePendingMove {
+  stay: BoardingStay;
+  patch: StayMovePatch;
+}
+
+type TimelinePendingScroll =
+  | { kind: "day"; key: string }
+  | { kind: "shift"; px: number; startKey: string };
+
+const TL_LONG_PRESS_MS = 300;
+const TL_TOUCH_TOLERANCE = 8; // px a finger may move before the long-press = a scroll
+const TL_MOUSE_THRESHOLD = 5; // px before a mouse press becomes a drag
+const TL_EDGE = 36; // px from the scroller edge that auto-scrolls during a drag
+const TL_EDGE_STEP = 14;
 
 function TimelineView({
   rooms,
   stays,
-  numDays = TIMELINE_DAYS,
-  startDate,
+  scrollTo,
+  compact = false,
   search = "",
   onOpenStay,
+  canDrag = false,
 }: {
   rooms: Room[];
   stays: BoardingStay[];
-  numDays?: number;
-  /** First visible day (defaults to today). Can be in the past — historical stays are shown too. */
-  startDate?: Date;
+  /** Day to scroll to (today by default). A new `n` scrolls again, even to the same day. */
+  scrollTo: TimelineScrollRequest;
+  /** Narrow columns + thin rows — many days and rooms on one screen. */
+  compact?: boolean;
   /** Normalised search query (normSearch) — only rows with a matching stay are shown. */
   search?: string;
   onOpenStay?: (stay: BoardingStay) => void;
+  /** Bars can be dragged to another room / other dates (BOARDING_MANAGE). */
+  canDrag?: boolean;
 }) {
-  const realToday = startOfDay(new Date());
-  // `today` is the timeline origin (kept as the variable name to minimise churn below).
-  const today = startDate ? startOfDay(startDate) : realToday;
-  const days = Array.from({ length: numDays }, (_, i) => addDays(today, i));
-  const originKey = localDayKey(today);
-  const trackWidth = numDays * TL_DAY_W;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [boxWidth, setBoxWidth] = useState(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([entry]) => setBoxWidth(Math.floor(entry.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const narrow = boxWidth > 0 && boxWidth < 640;
+  const roomW = compact
+    ? (narrow ? TL_ROOM_W_COMPACT_NARROW : TL_ROOM_W_COMPACT)
+    : (narrow ? TL_ROOM_W_NARROW : TL_ROOM_W);
+  const dayW = compact ? TL_DAY_W_COMPACT : TL_DAY_W;
+  const rowH = compact ? TL_ROW_H_COMPACT : TL_ROW_H;
+  const barH = compact ? TL_BAR_H_COMPACT : TL_BAR_H;
+  const barTop = compact ? 2 : 4;
+  const rowMin = compact ? TL_ROW_MIN_COMPACT : TL_ROW_MIN;
+  const rowHeightFor = (n: number) => Math.max(rowMin, n * rowH + barTop * 2);
+
+  const [win, setWin] = useState<DayWindow>(() => windowAround(scrollTo.day));
+  const winRef = useRef(win);
+  winRef.current = win;
+  const numDays = win.days;
+  const originKey = win.startKey;
+  const trackWidth = numDays * dayW;
+  const todayIndex = dayKeyDiff(originKey, localDayKey(new Date())); // may be outside the window
+  const days = useMemo(
+    () => Array.from({ length: numDays }, (_, i) => addDayKey(originKey, i)),
+    [originKey, numDays],
+  );
+  const segments = useMemo(() => monthSegments(win), [win]);
+  const saturdayIndex = firstWeekdayIndex(originKey, 6);
+
+  const dayWRef = useRef(dayW);
+  dayWRef.current = dayW;
+  const roomWRef = useRef(roomW);
+  roomWRef.current = roomW;
+  const draggingRef = useRef(false);
+
+  // ── Scroll position management ──
+  // A pending adjustment is applied right after the DOM reflects the change it belongs to
+  // (first render / a jump → scroll to the day; a prepend → keep the view still).
+  const pendingScrollRef = useRef<TimelinePendingScroll | null>({ kind: "day", key: scrollTo.day });
+  const leftDayRef = useRef<number | null>(null); // first visible day (fractional) — kept across a compact toggle
+  const prevDayWRef = useRef(dayW);
+  const panRef = useRef<{ startX: number; startY: number; startScrollLeft: number; startScrollTop: number; active: boolean } | null>(null);
+  const panCleanupRef = useRef<(() => void) | null>(null);
+  const scrollRafRef = useRef(0);
+  const [panning, setPanning] = useState(false);
+
+  const lastRequestRef = useRef(scrollTo.n);
+  useLayoutEffect(() => {
+    if (scrollTo.n === lastRequestRef.current) return;
+    lastRequestRef.current = scrollTo.n;
+    if (!windowContains(winRef.current, scrollTo.day, TL_EXTEND_THRESHOLD_DAYS + 14)) {
+      setWin(windowAround(scrollTo.day));
+    }
+    pendingScrollRef.current = { kind: "day", key: scrollTo.day };
+  }, [scrollTo.n, scrollTo.day]);
+
+  // Runs after every commit (declared after the jump effect, so it sees its request).
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (prevDayWRef.current !== dayW) {
+      prevDayWRef.current = dayW;
+      if (leftDayRef.current !== null && !pendingScrollRef.current) el.scrollLeft = leftDayRef.current * dayW;
+    }
+    const p = pendingScrollRef.current;
+    if (!p) return;
+    if (p.kind === "day") {
+      if (!windowContains(win, p.key)) return; // the new window is not rendered yet
+      el.scrollLeft = scrollLeftForDay(win, p.key, dayW);
+    } else {
+      if (win.startKey !== p.startKey) return;
+      el.scrollLeft += p.px;
+      if (panRef.current) panRef.current.startScrollLeft += p.px;
+    }
+    pendingScrollRef.current = null;
+    leftDayRef.current = el.scrollLeft / dayW;
+  });
+
+  const handleScroll = useCallback(() => {
+    if (scrollRafRef.current) return;
+    scrollRafRef.current = window.requestAnimationFrame(() => {
+      scrollRafRef.current = 0;
+      const el = scrollRef.current;
+      if (!el) return;
+      leftDayRef.current = el.scrollLeft / dayWRef.current;
+      // Never move the origin under a bar drag (its day delta is measured from it).
+      if (draggingRef.current || pendingScrollRef.current) return;
+      const next = extendWindowForScroll(winRef.current, {
+        scrollLeft: el.scrollLeft,
+        viewportWidth: el.clientWidth - roomWRef.current,
+        dayW: dayWRef.current,
+      });
+      if (!next) return;
+      pendingScrollRef.current = { kind: "shift", px: next.shiftPx, startKey: next.win.startKey };
+      setWin(next.win);
+    });
+  }, []);
+
+  useEffect(() => () => {
+    if (scrollRafRef.current) window.cancelAnimationFrame(scrollRafRef.current);
+    panCleanupRef.current?.();
+  }, []);
+
+  /** Mouse drag on empty grid area pans the timeline (bars keep their own drag). */
+  function handleScrollerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input, select, textarea, label, [data-tl-no-pan]")) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    // A press on the native scrollbar keeps its normal behaviour.
+    const r = el.getBoundingClientRect();
+    if (e.clientX - r.left > el.clientWidth || e.clientY - r.top > el.clientHeight) return;
+    panCleanupRef.current?.();
+    e.preventDefault(); // no text selection while panning
+    const pointerId = e.pointerId;
+    const st = { startX: e.clientX, startY: e.clientY, startScrollLeft: el.scrollLeft, startScrollTop: el.scrollTop, active: false };
+    panRef.current = st;
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      const dx = ev.clientX - st.startX;
+      const dy = ev.clientY - st.startY;
+      if (!st.active) {
+        if (Math.hypot(dx, dy) < TL_PAN_THRESHOLD) return;
+        st.active = true;
+        setPanning(true);
+      }
+      el.scrollLeft = st.startScrollLeft - dx;
+      el.scrollTop = st.startScrollTop - dy;
+    };
+    const cleanup = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onEnd);
+      window.removeEventListener("pointercancel", onEnd);
+      panRef.current = null;
+      panCleanupRef.current = null;
+      setPanning(false);
+    };
+    function onEnd(ev: PointerEvent) {
+      if (ev.pointerId === pointerId) cleanup();
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onEnd);
+    window.addEventListener("pointercancel", onEnd);
+    panCleanupRef.current = cleanup;
+  }
 
   /**
    * Bar span in day columns. The check-in day is fully covered and the check-out
@@ -704,6 +903,17 @@ function TimelineView({
     return map;
   }, [rooms, stays, spanOf, numDays, search]);
 
+  // Non-overlapping stays share a line — otherwise a room with history gets one line per stay.
+  const laneMap = useMemo(() => {
+    const out: Record<string, LaneLayout> = {};
+    for (const [key, list] of Object.entries(roomStaysMap)) {
+      out[key] = packLanes(list.map((st) => ({ id: st.id, ...spanOf(st) })));
+    }
+    return out;
+  }, [roomStaysMap, spanOf]);
+  const lanesOf = (key: string) => laneMap[key]?.lanes ?? 0;
+  const laneIndex = (key: string, stayId: string) => laneMap[key]?.laneOf.get(stayId) ?? 0;
+
   const visibleRooms = search
     ? rooms.filter((r) => (roomStaysMap[r.id] || []).length > 0 || normSearch(r.name).includes(search))
     : rooms;
@@ -713,41 +923,262 @@ function TimelineView({
     const visibleStart = Math.max(0, start);
     const visibleEnd = Math.min(numDays, end);
     return {
-      left: `${visibleStart * TL_DAY_W}px`,
-      width: `${Math.max(TL_DAY_W / 2, (visibleEnd - visibleStart) * TL_DAY_W)}px`,
+      left: `${visibleStart * dayW}px`,
+      width: `${Math.max(dayW / 2, (visibleEnd - visibleStart) * dayW)}px`,
       days: visibleEnd - visibleStart,
     };
   }
 
-  const todayIndex = diffDays(realToday, today); // may be out of range when browsing past/future
+  // ── Drag a bar to another room row and/or other dates ──
+  // Pointer events (mouse + touch). Mouse: press and move 5px. Touch: long-press 300ms,
+  // then move — a finger that moves earlier is a normal scroll.
+  const queryClient = useQueryClient();
+  const [drag, setDrag] = useState<TimelineDrag | null>(null);
+  const [pendingMove, setPendingMove] = useState<TimelinePendingMove | null>(null);
+  const suppressClickRef = useRef(false);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
-  function renderBars(list: BoardingStay[]) {
-    return list.map((stay, rowIdx) => {
+  useEffect(() => () => cleanupRef.current?.(), []);
+
+  // While a touch drag is active, stop the browser from scrolling the timeline
+  // (needs a non-passive listener — React's onTouchMove is passive).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onTouchMove = (ev: TouchEvent) => { if (draggingRef.current) ev.preventDefault(); };
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => el.removeEventListener("touchmove", onTouchMove);
+  }, []);
+
+  const moveMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: StayMovePatch }) =>
+      fetchJSON<BoardingStay>(`/api/boarding/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      }),
+    onSuccess: () => {
+      setPendingMove(null);
+      toast.success("ההזמנה עודכנה");
+    },
+    onError: (err: unknown) => {
+      setPendingMove(null);
+      toast.error(err instanceof Error && err.message ? err.message : "שגיאה בעדכון ההזמנה");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["boarding-occupancy"] });
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    },
+  });
+
+  function rowAtPoint(x: number, y: number): string | null {
+    const el = document.elementFromPoint(x, y) as HTMLElement | null;
+    return el?.closest<HTMLElement>("[data-tl-row]")?.dataset.tlRow ?? null;
+  }
+
+  function handleBarPointerDown(e: React.PointerEvent<HTMLButtonElement>, stay: BoardingStay, originRow: string) {
+    suppressClickRef.current = false;
+    if (!canDrag || !isStayDraggable(stay.status) || moveMutation.isPending) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    cleanupRef.current?.();
+
+    const pointerId = e.pointerId;
+    const isTouch = e.pointerType !== "mouse";
+    const st = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startScroll: scroller.scrollLeft,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      active: false,
+      targetRow: originRow,
+      dayDelta: 0,
+      timer: 0,
+    };
+
+    const publish = () => {
+      const dx = st.lastX + scroller.scrollLeft - (st.startX + st.startScroll);
+      const delta = dragDayDelta(dx, dayWRef.current);
+      const row = rowAtPoint(st.lastX, st.lastY) ?? st.targetRow;
+      if (delta === st.dayDelta && row === st.targetRow && st.active && draggingRef.current) {
+        // unchanged — skip a re-render
+        return;
+      }
+      st.dayDelta = delta;
+      st.targetRow = row;
+      setDrag({ stayId: stay.id, originRow, targetRow: row, dayDelta: delta });
+    };
+
+    const activate = () => {
+      st.active = true;
+      suppressClickRef.current = true;
+      setDrag({ stayId: stay.id, originRow, targetRow: originRow, dayDelta: 0 });
+      draggingRef.current = true;
+      if (isTouch && typeof navigator !== "undefined" && "vibrate" in navigator) {
+        try { navigator.vibrate(15); } catch { /* not supported */ }
+      }
+    };
+
+    const autoScroll = (x: number, y: number) => {
+      const r = scroller.getBoundingClientRect();
+      if (x < r.left + roomWRef.current + TL_EDGE) scroller.scrollLeft -= TL_EDGE_STEP;
+      else if (x > r.right - TL_EDGE) scroller.scrollLeft += TL_EDGE_STEP;
+      if (y < r.top + TL_EDGE + 40) scroller.scrollTop -= TL_EDGE_STEP;
+      else if (y > r.bottom - TL_EDGE) scroller.scrollTop += TL_EDGE_STEP;
+    };
+
+    const finish = (commit: boolean) => {
+      window.clearTimeout(st.timer);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("keydown", onKey);
+      cleanupRef.current = null;
+      draggingRef.current = false;
+      setDrag(null);
+      if (!st.active) return;
+      // The click that follows pointerup must not open the stay.
+      window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+      if (!commit) return;
+      // Dropped back on its own row → the room is unchanged (also for a stay whose
+      // room is not in the list and therefore sits in the "ללא חדר" row).
+      const row = st.targetRow === originRow ? (stay.room?.id ?? UNASSIGNED_ROW) : st.targetRow;
+      const patch = buildStayMovePatch(
+        { checkIn: stay.checkIn, checkOut: stay.checkOut, roomId: stay.room?.id ?? null },
+        st.dayDelta,
+        row,
+      );
+      if (patch) setPendingMove({ stay, patch });
+    };
+
+    function onMove(ev: PointerEvent) {
+      if (ev.pointerId !== pointerId) return;
+      st.lastX = ev.clientX;
+      st.lastY = ev.clientY;
+      if (!st.active) {
+        const dist = Math.hypot(ev.clientX - st.startX, ev.clientY - st.startY);
+        if (isTouch) {
+          if (dist > TL_TOUCH_TOLERANCE) finish(false); // a scroll, not a long-press
+          return;
+        }
+        if (dist < TL_MOUSE_THRESHOLD) return;
+        activate();
+      }
+      autoScroll(ev.clientX, ev.clientY);
+      publish();
+    }
+    function onUp(ev: PointerEvent) {
+      if (ev.pointerId !== pointerId) return;
+      if (st.active) {
+        st.lastX = ev.clientX;
+        st.lastY = ev.clientY;
+        publish();
+      }
+      finish(true);
+    }
+    function onCancel(ev: PointerEvent) {
+      if (ev.pointerId === pointerId) finish(false);
+    }
+    function onKey(ev: KeyboardEvent) {
+      if (ev.key === "Escape") finish(false);
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    window.addEventListener("keydown", onKey);
+    cleanupRef.current = () => finish(false);
+    if (isTouch) st.timer = window.setTimeout(activate, TL_LONG_PRESS_MS);
+  }
+
+  const draggedStay = drag ? stays.find((s) => s.id === drag.stayId) ?? null : null;
+
+  function renderGhost(rowKey: string, list: BoardingStay[]) {
+    if (!drag || !draggedStay || drag.targetRow !== rowKey) return null;
+    const { start, end } = spanOf(draggedStay);
+    const s = start + drag.dayDelta;
+    const e = end + drag.dayDelta;
+    const visibleStart = Math.max(0, s);
+    const visibleEnd = Math.min(numDays, e);
+    const width = Math.max(dayW / 2, (visibleEnd - visibleStart) * dayW);
+    const sameRow = rowKey === drag.originRow;
+    const layoutKey = rowKey === UNASSIGNED_ROW ? "unassigned" : rowKey;
+    const idx = sameRow ? laneIndex(layoutKey, draggedStay.id) : lanesOf(layoutKey);
+    const newIn = drag.dayDelta ? shiftIsoByIsraelDays(draggedStay.checkIn, drag.dayDelta) : draggedStay.checkIn;
+    const newOut = draggedStay.checkOut
+      ? (drag.dayDelta ? shiftIsoByIsraelDays(draggedStay.checkOut, drag.dayDelta) : draggedStay.checkOut)
+      : null;
+    const offscreen = visibleEnd <= 0 || visibleStart >= numDays;
+    return (
+      <div
+        key="__ghost"
+        dir="rtl"
+        aria-hidden
+        className={cn(
+          "absolute z-[5] pointer-events-none rounded-md border-2 border-dashed border-brand-500 bg-brand-100/80 flex items-center gap-1 font-semibold text-brand-800 overflow-hidden whitespace-nowrap shadow-md",
+          compact ? "px-1 text-[9px]" : "px-2 text-[10px]",
+        )}
+        style={{
+          left: `${offscreen ? 0 : visibleStart * dayW}px`,
+          width: `${offscreen ? dayW : width}px`,
+          top: `${barTop + idx * rowH}px`,
+          height: `${barH}px`,
+        }}
+      >
+        {!compact && <PawPrint className="w-3 h-3 flex-shrink-0" />}
+        <span className="truncate">
+          {draggedStay.pet.name} · {formatDate(newIn)}{newOut ? ` → ${formatDate(newOut)}` : ""}
+        </span>
+      </div>
+    );
+  }
+
+  function renderBars(list: BoardingStay[], rowKey: string) {
+    const layoutKey = rowKey === UNASSIGNED_ROW ? "unassigned" : rowKey;
+    return list.map((stay) => {
+      const rowIdx = laneIndex(layoutKey, stay.id);
       const pos = getBarPosition(stay);
       const barColor = stay.status === "checked_in" ? "#22C55E"
         : stay.status === "checked_out" ? "#3B82F6"
         : "#94A3B8";
       const range = `${formatDate(stay.checkIn)}${stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}`;
+      const draggable = canDrag && isStayDraggable(stay.status);
+      const isDragged = drag?.stayId === stay.id;
       return (
         <button
           type="button"
           key={stay.id}
-          onClick={() => onOpenStay?.(stay)}
+          onClick={() => {
+            if (suppressClickRef.current) { suppressClickRef.current = false; return; }
+            onOpenStay?.(stay);
+          }}
+          onPointerDown={draggable ? (e) => handleBarPointerDown(e, stay, rowKey) : undefined}
+          onContextMenu={draggable ? (e) => e.preventDefault() : undefined}
           dir="rtl"
-          className="absolute rounded-md flex items-center gap-1 px-2 text-[10px] font-semibold text-white overflow-hidden whitespace-nowrap shadow-sm cursor-pointer hover:brightness-110 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 transition-[filter,box-shadow]"
+          className={cn(
+            "absolute flex items-center gap-1 font-semibold text-white overflow-hidden whitespace-nowrap shadow-sm hover:brightness-110 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 transition-[filter,box-shadow,opacity]",
+            compact ? "rounded px-1 text-[9px] leading-none" : "rounded-md px-2 text-[10px]",
+            draggable ? "cursor-grab select-none" : "cursor-pointer",
+            isDragged && "opacity-40 ring-2 ring-brand-400",
+          )}
           style={{
             left: pos.left,
             width: pos.width,
-            top: `${4 + rowIdx * TL_ROW_H}px`,
-            height: "22px",
+            top: `${barTop + rowIdx * rowH}px`,
+            height: `${barH}px`,
             backgroundColor: barColor,
+            WebkitTouchCallout: draggable ? "none" : undefined,
+            WebkitUserSelect: draggable ? "none" : undefined,
           }}
-          title={`${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${range}\nלחצו לפתיחת ההזמנה`}
+          title={`${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${range}\nלחצו לפתיחת ההזמנה${draggable ? " · גררו להעברת חדר או תאריכים" : ""}`}
           aria-label={`${stay.pet.name}, ${range} — פתח את ההזמנה`}
         >
-          <PawPrint className="w-3 h-3 flex-shrink-0" />
+          {!compact && <PawPrint className="w-3 h-3 flex-shrink-0" />}
           <span className="truncate">{stay.pet.name}</span>
-          {pos.days >= 3 && stay.checkOut && (
+          {pos.days >= (compact ? 6 : 3) && stay.checkOut && (
             <span className="ms-auto ps-1 font-normal opacity-90 flex-shrink-0">עד {formatDate(stay.checkOut)}</span>
           )}
         </button>
@@ -755,138 +1186,235 @@ function TimelineView({
     });
   }
 
-  function renderGridLines(withTint: boolean) {
+  /** Extra stacked slot for the ghost when it lands in a row it does not come from. */
+  function ghostExtra(rowKey: string): number {
+    return drag && drag.targetRow === rowKey && drag.originRow !== rowKey ? 1 : 0;
+  }
+
+  function moveDescription(m: TimelinePendingMove): string {
+    const parts: string[] = [];
+    if (m.patch.roomId !== undefined) {
+      const room = m.patch.roomId ? rooms.find((r) => r.id === m.patch.roomId) : null;
+      parts.push(room ? `לחדר ${room.name}` : "לשורת ״ללא חדר״");
+    }
+    let text = `להעביר את ${m.stay.pet.name}${parts.length ? ` ${parts[0]}` : ""}`;
+    if (m.patch.checkIn) {
+      const out = m.patch.checkOut;
+      text += ` · ${formatDateTimeShort(m.patch.checkIn)}${out ? ` → ${formatDateTimeShort(out)}` : " (ללא תאריך יציאה)"}`;
+    } else {
+      text += ` · התאריכים לא משתנים`;
+    }
+    return `${text}?`;
+  }
+
+  // Grid lines (one per day) + Saturday tint as repeating CSS backgrounds — no element
+  // per day per row, so hundreds of columns stay cheap.
+  const gridStyle = (withTint: boolean): React.CSSProperties => {
+    const line = "linear-gradient(to right, #f1f5f9 1px, transparent 1px)";
+    if (!withTint) return { backgroundImage: line, backgroundSize: `${dayW}px 100%` };
+    const sat = `linear-gradient(to right, rgba(241,245,249,0.6) ${dayW}px, transparent ${dayW}px)`;
+    return {
+      backgroundImage: `${line}, ${sat}`,
+      backgroundSize: `${dayW}px 100%, ${dayW * 7}px 100%`,
+      backgroundPosition: `0 0, ${saturdayIndex * dayW}px 0`,
+    };
+  };
+
+  function renderGridOverlays(withTint: boolean) {
     return (
-      <div className="absolute inset-0 flex">
-        {days.map((day, i) => {
-          const isToday = i === todayIndex;
-          const dayOfWeek = day.getDay();
-          return (
-            <div
-              key={i}
-              className={cn(
-                "border-l border-slate-100 h-full flex-shrink-0",
-                withTint && isToday && "bg-orange-50/30",
-                withTint && dayOfWeek === 6 && "bg-slate-50/30"
-              )}
-              style={{ width: TL_DAY_W }}
-            />
-          );
-        })}
-      </div>
+      <>
+        {segments.slice(1).map((s) => (
+          <div key={s.month} aria-hidden className="absolute inset-y-0 w-px bg-slate-300 pointer-events-none" style={{ left: s.startIndex * dayW }} />
+        ))}
+        {withTint && todayIndex >= 0 && todayIndex < numDays && (
+          <div aria-hidden className="absolute inset-y-0 bg-orange-50/40 pointer-events-none" style={{ left: todayIndex * dayW, width: dayW }} />
+        )}
+      </>
     );
   }
 
+  // Header (memoised — a bar drag re-renders the view on every day change).
+  const header = useMemo(() => (
+    <div className="flex sticky top-0 z-20 bg-white border-b border-petra-border">
+      <div
+        className={cn(
+          "sticky left-0 z-30 flex-shrink-0 flex items-end font-semibold text-petra-text bg-slate-50 border-r border-petra-border text-right",
+          compact ? "px-1.5 py-1 text-xs" : "p-2 text-sm",
+        )}
+        style={{ width: roomW }}
+        dir="rtl"
+      >
+        חדר
+      </div>
+      <div className="flex-shrink-0" style={{ width: numDays * dayW }}>
+        {/* Month row — the label sticks next to the room column while its month is on screen */}
+        <div className="flex border-b border-slate-100">
+          {segments.map((s) => {
+            const [y, m] = s.month.split("-").map(Number);
+            const label = new Date(y, m - 1, 1).toLocaleDateString("he-IL", { month: compact ? "short" : "long", year: "numeric" });
+            return (
+              <div
+                key={s.month}
+                className="flex-shrink-0 border-l border-slate-300"
+                style={{ width: s.length * dayW }}
+              >
+                <span
+                  className={cn("sticky inline-block truncate align-top px-1.5 font-semibold text-petra-text", compact ? "text-[9px] leading-4" : "text-[10px] leading-5")}
+                  style={{ left: roomW, maxWidth: s.length * dayW }}
+                  dir="rtl"
+                >
+                  {label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex">
+          {days.map((key, i) => {
+            const isToday = i === todayIndex;
+            const dayOfWeek = dayKeyWeekday(key);
+            const dayOfMonth = Number(key.slice(8, 10));
+            return (
+              <div
+                key={key}
+                className={cn(
+                  "flex-shrink-0 text-center border-l",
+                  compact ? "py-0.5" : "py-1.5",
+                  dayOfMonth === 1 ? "border-slate-300" : "border-petra-border",
+                  isToday ? "bg-orange-50" : dayOfWeek === 6 ? "bg-slate-50" : "bg-white",
+                )}
+                style={{ width: dayW }}
+              >
+                <div className={cn(compact ? "text-[9px] leading-3" : "text-[10px]", isToday ? "text-orange-600 font-bold" : "text-petra-muted")}>
+                  {HE_DAYS[dayOfWeek]}
+                </div>
+                <div className={cn("font-semibold", compact ? "text-[10px] leading-3" : "text-[11px]", isToday ? "text-orange-600" : "text-petra-text")}>
+                  {compact ? dayOfMonth : `${dayOfMonth}/${Number(key.slice(5, 7))}`}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  ), [compact, roomW, numDays, dayW, segments, days, todayIndex]);
+
   const unassigned = roomStaysMap["unassigned"] || [];
+  const showUnassignedRow = unassigned.length > 0 || !!drag;
+  const unassignedH = rowHeightFor(lanesOf("unassigned") + ghostExtra(UNASSIGNED_ROW));
 
   return (
     <div className="card overflow-hidden">
-      <div className="overflow-auto max-h-[75vh] overscroll-contain" dir="ltr" data-no-pull-refresh>
-        <div style={{ width: TL_ROOM_W + trackWidth }}>
-          {/* Header row — sticky on top while scrolling down through the rooms */}
-          <div className="flex sticky top-0 z-20 bg-white border-b border-petra-border">
-            <div
-              className="sticky left-0 z-30 flex-shrink-0 p-2 text-sm font-semibold text-petra-text bg-slate-50 border-r border-petra-border text-right"
-              style={{ width: TL_ROOM_W }}
-              dir="rtl"
-            >
-              חדר
-            </div>
-            {days.map((day, i) => {
-              const isToday = i === todayIndex;
-              const dayOfWeek = day.getDay();
-              return (
-                <div
-                  key={i}
-                  className={cn(
-                    "flex-shrink-0 py-1.5 text-center border-l border-petra-border",
-                    isToday ? "bg-orange-50" : dayOfWeek === 6 ? "bg-slate-50" : "bg-white"
-                  )}
-                  style={{ width: TL_DAY_W }}
-                >
-                  <div className={cn("text-[10px]", isToday ? "text-orange-600 font-bold" : "text-petra-muted")}>
-                    {HE_DAYS[dayOfWeek]}
-                  </div>
-                  <div className={cn("text-[11px] font-semibold", isToday ? "text-orange-600" : "text-petra-text")}>
-                    {day.getDate()}/{day.getMonth() + 1}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      <p className="px-3 py-1.5 text-[11px] text-petra-muted border-b border-slate-100" dir="rtl">
+        גללו לצדדים לתאריכים נוספים (במחשב: גלגלת עם Shift, משטח מגע, או גרירה של רקע ריק)
+        {canDrag ? " · אפשר לגרור הזמנה לחדר אחר או לתאריכים אחרים — בטלפון: לחיצה ארוכה ואז גרירה." : "."}
+      </p>
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        onPointerDown={handleScrollerPointerDown}
+        className={cn(
+          "overflow-auto max-h-[75vh] overscroll-contain",
+          drag || panning ? "cursor-grabbing select-none" : "cursor-grab",
+        )}
+        dir="ltr"
+        data-no-pull-refresh
+      >
+        <div style={{ width: roomW + trackWidth }}>
+          {header}
 
           {/* Room rows */}
           {visibleRooms.map((room) => {
             const roomStays = roomStaysMap[room.id] || [];
             const displayStatus = getRoomDisplayStatus(room);
             const statusColor = ROOM_STATUS_MAP[displayStatus]?.color || "#94A3B8";
-            const rowHeight = Math.max(48, roomStays.length * TL_ROW_H + 8);
+            const rowHeight = rowHeightFor(lanesOf(room.id) + ghostExtra(room.id));
+            const isDropTarget = !!drag && drag.targetRow === room.id;
 
             return (
-              <div key={room.id} className="flex border-b border-slate-100">
+              <div key={room.id} className="flex border-b border-slate-100" data-tl-row={room.id}>
                 {/* Room label — sticky on the side while scrolling sideways */}
                 <div
-                  className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-50 border-r border-petra-border"
-                  style={{ width: TL_ROOM_W, minHeight: rowHeight }}
+                  className={cn(
+                    "sticky left-0 z-10 flex-shrink-0 flex items-center bg-slate-50 border-r border-petra-border",
+                    compact ? "px-1.5 py-0.5 gap-1" : "p-2 gap-2",
+                  )}
+                  style={{ width: roomW, minHeight: rowHeight }}
                   dir="rtl"
+                  title={room.name}
                 >
                   <div
-                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    className={cn("rounded-full flex-shrink-0", compact ? "w-1.5 h-1.5" : "w-2 h-2")}
                     style={{ backgroundColor: statusColor }}
                   />
-                  <span className="text-xs font-medium text-petra-text truncate">{room.name}</span>
-                  <span className="text-[9px] text-petra-muted ms-auto">{room._count.boardingStays}/{room.capacity}</span>
+                  <span className={cn("font-medium text-petra-text truncate", compact ? "text-[10px]" : "text-xs")}>{room.name}</span>
+                  <span className={cn("text-petra-muted ms-auto", compact ? "text-[8px]" : "text-[9px]")}>{room._count.boardingStays}/{room.capacity}</span>
                 </div>
 
                 {/* Timeline cells with bars */}
-                <div className="relative flex-shrink-0" style={{ width: trackWidth, minHeight: rowHeight }}>
-                  {renderGridLines(true)}
-                  {renderBars(roomStays)}
-                  {roomStays.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-[10px] text-slate-300">—</span>
-                    </div>
-                  )}
+                <div
+                  className={cn("relative flex-shrink-0", isDropTarget && "bg-brand-50/60")}
+                  style={{ width: trackWidth, minHeight: rowHeight, ...gridStyle(true) }}
+                >
+                  {renderGridOverlays(true)}
+                  {renderBars(roomStays, room.id)}
+                  {renderGhost(room.id, roomStays)}
                 </div>
               </div>
             );
           })}
 
           {/* Unassigned row */}
-          {unassigned.length > 0 && (
-            <div className="flex border-b border-slate-100">
+          {showUnassignedRow && (
+            <div className="flex border-b border-slate-100" data-tl-row={UNASSIGNED_ROW}>
               <div
-                className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-100 border-r border-petra-border"
-                style={{ width: TL_ROOM_W, minHeight: Math.max(48, unassigned.length * TL_ROW_H + 8) }}
+                className={cn(
+                  "sticky left-0 z-10 flex-shrink-0 flex items-center bg-slate-100 border-r border-petra-border",
+                  compact ? "px-1.5 py-0.5 gap-1" : "p-2 gap-2",
+                )}
+                style={{ width: roomW, minHeight: unassignedH }}
                 dir="rtl"
               >
-                <Hotel className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-xs font-medium text-slate-500">ללא חדר</span>
+                <Hotel className={cn("text-slate-400", compact ? "w-3 h-3" : "w-3.5 h-3.5")} />
+                <span className={cn("font-medium text-slate-500", compact ? "text-[10px]" : "text-xs")}>ללא חדר</span>
               </div>
               <div
-                className="relative flex-shrink-0"
-                style={{ width: trackWidth, minHeight: Math.max(48, unassigned.length * TL_ROW_H + 8) }}
+                className={cn("relative flex-shrink-0", drag?.targetRow === UNASSIGNED_ROW && "bg-brand-50/60")}
+                style={{ width: trackWidth, minHeight: unassignedH, ...gridStyle(false) }}
               >
-                {renderGridLines(false)}
-                {renderBars(unassigned)}
+                {renderGridOverlays(false)}
+                {renderBars(unassigned, UNASSIGNED_ROW)}
+                {renderGhost(UNASSIGNED_ROW, unassigned)}
               </div>
             </div>
           )}
 
           {search && visibleRooms.length === 0 && unassigned.length === 0 && (
-            <div className="p-6 text-center text-sm text-petra-muted" dir="rtl">לא נמצאו הזמנות תואמות בטווח המוצג</div>
+            <div className="sticky left-0 p-6 text-center text-sm text-petra-muted" style={{ width: boxWidth || undefined }} dir="rtl">לא נמצאו הזמנות תואמות בטווח המוצג</div>
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={!!pendingMove}
+        title="עדכון ההזמנה"
+        description={pendingMove ? moveDescription(pendingMove) : undefined}
+        confirmLabel="העבר"
+        loading={moveMutation.isPending}
+        onConfirm={() => {
+          if (pendingMove) moveMutation.mutate({ id: pendingMove.stay.id, patch: pendingMove.patch });
+        }}
+        onCancel={() => setPendingMove(null)}
+      />
     </div>
   );
 }
 
 // ─── Simple Draggable wrapper (for unassigned zone) ─────────────────────────
 
-const DraggableStayInRoom = memo(function DraggableStayInRoom({ stayId, children }: { stayId: string; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: stayId });
+const DraggableStayInRoom = memo(function DraggableStayInRoom({ stayId, children, disabled = false }: { stayId: string; children: React.ReactNode; disabled?: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: stayId, disabled });
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+  if (disabled) return <div className="rounded-lg">{children}</div>;
   return (
     <div
       ref={setNodeRef}
@@ -902,9 +1430,11 @@ const DraggableStayInRoom = memo(function DraggableStayInRoom({ stayId, children
 
 // ─── Sortable Stay wrapper for Grid View (supports both intra-room sort & cross-room move) ──
 
-const SortableStayInRoom = memo(function SortableStayInRoom({ stayId, children }: { stayId: string; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stayId });
+const SortableStayInRoom = memo(function SortableStayInRoom({ stayId, children, disabled = false }: { stayId: string; children: React.ReactNode; disabled?: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stayId, disabled });
   const style = { transform: CSS.Transform.toString(transform), transition };
+  // Without BOARDING_MANAGE the card is static — no drag listeners / handle cursor.
+  if (disabled) return <div className="rounded-lg">{children}</div>;
   return (
     <div
       ref={setNodeRef}
@@ -924,12 +1454,15 @@ const UnassignedGridCard = memo(function UnassignedGridCard({
   stays,
   onCheckin,
   onCheckout,
+  canDrag = false,
 }: {
   stays: BoardingStay[];
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
+  /** Stay cards can be dragged between rooms (BOARDING_MANAGE). */
+  canDrag?: boolean;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: "unassigned" });
+  const { setNodeRef, isOver } = useDroppable({ id: "unassigned", disabled: !canDrag });
 
   if (stays.length === 0 && !isOver) return null;
 
@@ -957,7 +1490,7 @@ const UnassignedGridCard = memo(function UnassignedGridCard({
         )}
 
         {stays.map((stay) => (
-          <DraggableStayInRoom key={stay.id} stayId={stay.id}>
+          <DraggableStayInRoom key={stay.id} stayId={stay.id} disabled={!canDrag}>
             <div className="p-3 rounded-lg mb-2 bg-white border border-slate-200">
               <div className="flex items-center gap-2">
                 <PawPrint className="w-4 h-4 text-slate-400 flex-shrink-0" />
@@ -2193,10 +2726,21 @@ function BoardingPageContent() {
   const [occDraftTo, setOccDraftTo] = useState(weekAheadStr);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
-  const [timelineDays, setTimelineDays] = useState(14);
   const [editStay, setEditStay] = useState<BoardingStay | null>(null);
-  // Timeline origin — "" = today. Lets the user scroll back to past weeks (retroactive stays, history).
-  const [timelineStart, setTimelineStart] = useState<string>("");
+  // Timeline: continuous scroll — "היום" / the date picker ask it to scroll to a day.
+  const [timelineJump, setTimelineJump] = useState<TimelineScrollRequest>(() => ({ day: localDayKey(new Date()), n: 0 }));
+  // Compact timeline (many days + rooms on one screen) — remembered per browser.
+  const [timelineCompact, setTimelineCompact] = useState(false);
+  useEffect(() => {
+    try { setTimelineCompact(window.localStorage.getItem(TL_COMPACT_STORAGE_KEY) === "1"); } catch { /* storage blocked */ }
+  }, []);
+  const toggleTimelineCompact = () => {
+    setTimelineCompact((v) => {
+      const next = !v;
+      try { window.localStorage.setItem(TL_COMPACT_STORAGE_KEY, next ? "1" : "0"); } catch { /* storage blocked */ }
+      return next;
+    });
+  };
 
   // Dialog state
   const shouldCreateMedTasksRef = useRef(false);
@@ -2680,11 +3224,14 @@ function BoardingPageContent() {
   // ── DnD handlers ──
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
+    if (!canManageBoarding) return;
     setActiveStayId(String(event.active.id));
-  }, []);
+  }, [canManageBoarding]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     setActiveStayId(null);
+    // Moving a stay between rooms needs BOARDING_MANAGE (the server answers 403 too).
+    if (!canManageBoarding) return;
     const { active, over } = event;
     if (!over) return;
 
@@ -2738,7 +3285,7 @@ function BoardingPageContent() {
         return next;
       });
     }
-  }, [stays, roomMutation]);
+  }, [stays, roomMutation, canManageBoarding]);
 
   // ── Computed data ──
 
@@ -2799,12 +3346,16 @@ function BoardingPageContent() {
           (s) =>
             s.room?.id === room.id &&
             ACTIVE_STATUSES.includes(s.status) &&
-            staysOverlap(s, { checkIn: form.checkIn, checkOut: form.checkOut })
+            // Same rule as the server capacity check: shared nights, hours ignored.
+            staysShareNight(s, {
+              checkIn: `${form.checkIn}T${form.checkInTime || "12:00"}:00`,
+              checkOut: `${form.checkOut}T${form.checkOutTime || "12:00"}:00`,
+            })
         ).length;
         return [room.id, overlapping < room.capacity];
       })
     );
-  }, [form.checkIn, form.checkOut, rooms, stays]);
+  }, [form.checkIn, form.checkOut, form.checkInTime, form.checkOutTime, rooms, stays]);
 
   // Dogs occupying each room today (Israel day) — for the room dropdown before dates are chosen.
   const roomTodayCount = useMemo(() => {
@@ -3119,47 +3670,38 @@ function BoardingPageContent() {
         <div className="flex flex-wrap items-center gap-2">
           {viewMode === "timeline" && (
             <div className="flex items-center gap-1 text-xs">
-              {(() => {
-                const todayYmd = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
-                const base = timelineStart || todayYmd;
-                const shift = (d: number) => {
-                  const dt = new Date(base + "T00:00:00"); dt.setDate(dt.getDate() + d);
-                  const ymd = dt.toLocaleDateString("en-CA");
-                  setTimelineStart(ymd === todayYmd ? "" : ymd);
-                };
-                return (
-                  <>
-                    <button type="button" onClick={() => shift(-7)} className="px-1.5 py-1 rounded-md hover:bg-slate-100 text-petra-muted" title="שבוע אחורה">‹</button>
-                    <input
-                      type="date" lang="he"
-                      className="input !py-1 !px-2 text-xs w-[8.5rem]"
-                      value={base}
-                      onChange={(e) => setTimelineStart(e.target.value && e.target.value !== todayYmd ? e.target.value : "")}
-                      title="תאריך התחלה של ציר הזמן (אפשר גם אחורה)"
-                    />
-                    <button type="button" onClick={() => shift(7)} className="px-1.5 py-1 rounded-md hover:bg-slate-100 text-petra-muted" title="שבוע קדימה">›</button>
-                    {timelineStart && (
-                      <button type="button" onClick={() => setTimelineStart("")} className="px-2 py-1 rounded-md bg-orange-50 text-orange-700 font-medium hover:bg-orange-100">היום</button>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          )}
-          {viewMode === "timeline" && (
-            <div className="flex gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs">
-              {[14, 30].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setTimelineDays(n)}
-                  className={cn(
-                    "px-2 py-1 rounded-md font-medium transition-all",
-                    timelineDays === n ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text"
-                  )}
-                >
-                  {n} ימים
-                </button>
-              ))}
+              <button
+                type="button"
+                onClick={() => setTimelineJump((j) => ({ day: localDayKey(new Date()), n: j.n + 1 }))}
+                className="px-2 py-1 rounded-md bg-orange-50 text-orange-700 font-medium hover:bg-orange-100"
+                title="גלילה להיום"
+              >
+                היום
+              </button>
+              <input
+                type="date" lang="he"
+                className="input !py-1 !px-2 text-xs w-[8.5rem]"
+                value={timelineJump.day}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) setTimelineJump((j) => ({ day: v, n: j.n + 1 }));
+                }}
+                title="קפיצה לתאריך בציר הזמן (אפשר גם אחורה)"
+              />
+              <button
+                type="button"
+                onClick={toggleTimelineCompact}
+                aria-pressed={timelineCompact}
+                className={cn(
+                  "px-2 py-1 rounded-md font-medium border transition-all",
+                  timelineCompact
+                    ? "bg-slate-800 text-white border-slate-800"
+                    : "bg-white text-petra-muted border-slate-200 hover:text-petra-text"
+                )}
+                title="עמודות צרות ושורות דקות — יותר ימים וחדרים במסך אחד"
+              >
+                תצוגה מצומצמת
+              </button>
             </div>
           )}
           {viewMode === "grid" && (
@@ -3274,6 +3816,7 @@ function BoardingPageContent() {
                   stays={occStaysShown.filter((s) => !s.room)}
                   onCheckin={handleCheckin}
                   onCheckout={handleCheckout}
+                  canDrag={canManageBoarding}
                 />
                 {gridRooms.map((room) => (
                   <RoomStatusCard
@@ -3286,6 +3829,7 @@ function BoardingPageContent() {
                     occPeriodStays={occStaysShown.filter(s => s.room?.id === room.id)}
                     sortedStayIds={roomSlotOrders[room.id] ?? occStaysShown.filter(s => s.room?.id === room.id).map(s => s.id)}
                     highlight={!!searchNorm}
+                    canDrag={canManageBoarding}
                   />
                 ))}
               </div>
@@ -3321,7 +3865,7 @@ function BoardingPageContent() {
               <p className="text-sm text-petra-muted">אין חדרים מוגדרים</p>
             </div>
           ) : (
-            <TimelineView rooms={rooms} stays={stays} search={searchNorm} onOpenStay={setEditStay} numDays={timelineDays} startDate={timelineStart ? new Date(timelineStart + "T00:00:00") : undefined} />
+            <TimelineView rooms={rooms} stays={stays} search={searchNorm} onOpenStay={setEditStay} canDrag={canManageBoarding} scrollTo={timelineJump} compact={timelineCompact} />
           )}
         </div>
       )}
