@@ -146,8 +146,8 @@ describe("a call without authentication", () => {
   const body = { conversationId: "conv-1", callerPhone: "+972541110001", fullName: "דנה" };
   it.each([
     ["start", startPOST], ["details", detailsPOST], ["book", bookPOST],
-  ] as const)("/%s: no header, a wrong secret or a non-Bearer header → 401, nothing stored", async (path, handler) => {
-    for (const auth of [null, "Bearer wrong-secret", SECRET, `Basic ${SECRET}`]) {
+  ] as const)("/%s: no header, a wrong secret or another auth scheme → 401, nothing stored", async (path, handler) => {
+    for (const auth of [null, "Bearer wrong-secret", "wrong-secret", `${SECRET}x`, `Basic ${SECRET}`]) {
       const res = await handler(tool(path, { ...body, startsAt: "2026-11-22T08:00:00.000Z" }, auth));
       expect(res.status).toBe(401);
       expect(await res.json()).toEqual({ error: "unauthorized" });

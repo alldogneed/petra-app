@@ -11,7 +11,7 @@
 | מה | איך |
 |---|---|
 | webhook תחילת השיחה | כותרת `Authorization` שהערך שלה הוא אותו סוד (`ALLDOG_VOICE_AGENT_SECRET`). פטרה מקבלת אותו גם עם `Bearer ` לפניו וגם בלעדיו |
-| שני הכלים | כותרת `Authorization` עם הערך `Bearer <הסוד>`. הסוד הוא הערך של `ALLDOG_VOICE_AGENT_SECRET` ב-Vercel. ב-ElevenLabs שומרים אותו כסוד (Secret) ומשתמשים בו רק בכותרת |
+| שני הכלים | כותרת `Authorization` שהערך שלה הוא הסוד. פטרה מקבלת אותו גם עם `Bearer ` לפניו וגם בלעדיו (ElevenLabs שולחת את הסוד כמו שהוא). הסוד הוא הערך של `ALLDOG_VOICE_AGENT_SECRET` ב-Vercel. ב-ElevenLabs שומרים אותו כסוד (Secret) ומשתמשים בו רק בכותרת |
 | ה-webhook | ElevenLabs חותמת כל בקשה בכותרת `ElevenLabs-Signature`. הסוד של ה-webhook (מתקבל כשיוצרים אותו אצלם) נשמר ב-Vercel כ-`ALLDOG_VOICE_WEBHOOK_SECRET` |
 
 לא לכתוב את ערכי הסודות בפרומפט, בתיאור כלי או בכל מקום שהמודל רואה.
@@ -97,7 +97,7 @@
 - **מתי הוא רץ בפועל:** משפט הפתיחה סטטי, והכלי לא יכול לרוץ במקביל אליו. הוא רץ רק בתור הראשון של המודל, כלומר אחרי שהמתקשר אמר את המשפט הראשון שלו. לכן המתקשר ממתין על הקו בזמן הקריאה, וזמן התגובה של הנתיב הזה קריטי.
 - **URL:** `https://petra-app.com/api/webhooks/alldog-voice/start`
 - **Method:** `POST`, גוף JSON
-- **Headers:** `Authorization: Bearer <הסוד>`, `Content-Type: application/json`
+- **Headers:** `Authorization: <הסוד>` (עם `Bearer ` או בלעדיו), `Content-Type: application/json`
 - **זמן המתנה מרבי:** הקצר ביותר שהלוח מאפשר, ולא יותר מ-3 שניות. אם אין תשובה, אלירן ממשיך בלי זיהוי. עדיף שיחה בלי זיהוי על שתיקה בקו.
 
 | פרמטר | סוג | חובה | מקור |
@@ -135,7 +135,7 @@
 - **תיאור לכלי:** "שומר את הפרטים שנאספו בשיחה ופותח לנציגה משימה לחזור ללקוח. נקרא פעם אחת, לקראת סוף השיחה, אחרי שנאספו הפרטים. במקרה דחוף (נשיכה של אדם, סכנה לילד) נקרא מיד כשזה מתברר, עם urgent=true."
 - **URL:** `https://petra-app.com/api/webhooks/alldog-voice/details`
 - **Method:** `POST`, גוף JSON
-- **Headers:** `Authorization: Bearer <הסוד>`, `Content-Type: application/json`
+- **Headers:** `Authorization: <הסוד>` (עם `Bearer ` או בלעדיו), `Content-Type: application/json`
 - **משפט המתנה לפני הקריאה:** אין. הכלי נקרא בלי הודעה למתקשר.
 - **זמן המתנה מרבי:** 10 שניות.
 

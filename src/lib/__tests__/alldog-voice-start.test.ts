@@ -171,11 +171,13 @@ describe("voice agent secret", () => {
     expect(verifyVoiceAgentSecret(req("Bearer anything"))).toBe(false);
   });
 
-  it("accepts only the exact Bearer secret", () => {
+  it("accepts only the exact secret, with or without Bearer (ElevenLabs sends it raw)", () => {
     process.env.ALLDOG_VOICE_AGENT_SECRET = "test-secret-123";
     expect(verifyVoiceAgentSecret(req("Bearer test-secret-123"))).toBe(true);
     expect(verifyVoiceAgentSecret(req("Bearer test-secret-12"))).toBe(false);
-    expect(verifyVoiceAgentSecret(req("test-secret-123"))).toBe(false);
+    expect(verifyVoiceAgentSecret(req("test-secret-123"))).toBe(true);
+    expect(verifyVoiceAgentSecret(req("test-secret-12"))).toBe(false);
+    expect(verifyVoiceAgentSecret(req("Basic test-secret-123"))).toBe(false);
     expect(verifyVoiceAgentSecret(req())).toBe(false);
   });
 });
