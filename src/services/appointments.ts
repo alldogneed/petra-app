@@ -158,7 +158,7 @@ export async function createAppointment(
   // Appointment limit check
   if (opts.maxAppointments !== null && opts.maxAppointments !== undefined) {
     const totalCount = await db.appointment.count({
-      where: { businessId, status: { notIn: ["CANCELED"] } },
+      where: { businessId, status: { notIn: ["canceled", "CANCELED"] } },
     });
     if (totalCount >= opts.maxAppointments) {
       throw new ServiceError(

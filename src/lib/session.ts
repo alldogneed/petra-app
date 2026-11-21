@@ -155,10 +155,17 @@ export async function getSession(): Promise<FullSession | null> {
 }
 
 /** Get a session by raw token value */
-export async function getSessionByToken(token: string): Promise<FullSession | null> {
-  // Fast path: return cached session if still valid
-  const cached = cacheGet(token);
-  if (cached) return cached;
+export async function getSessionByToken(
+  token: string,
+  opts: { fresh?: boolean } = {}
+): Promise<FullSession | null> {
+  // Fast path: return cached session if still valid. `fresh` (writes) skips it — the cache
+  // is per serverless instance and invalidation only reaches the local one, so a write must
+  // never run on a session that was revoked / downgraded / re-pointed on another instance.
+  if (!opts.fresh) {
+    const cached = cacheGet(token);
+    if (cached) return cached;
+  }
 
   const now = new Date();
   const tokenHashed = hashToken(token);
@@ -229,8 +236,12 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
     impersonatedByAdminId: session.impersonatedByAdminId ?? null,
   };
 
-  // Store in cache for subsequent requests within the TTL window
-  cacheSet(token, fullSession);
+  // Store in cache for subsequent requests within the TTL window. Platform-admin sessions
+  // are never cached: impersonation start/exit re-points them at another business, and a
+  // stale copy on another instance sent the admin's requests to the wrong business.
+  if (!fullSession.user.platformRole && !fullSession.impersonatedBusinessId) {
+    cacheSet(token, fullSession);
+  }
 
   return fullSession;
 }
