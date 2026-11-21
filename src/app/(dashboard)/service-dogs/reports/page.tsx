@@ -152,7 +152,7 @@ function ServiceDogsReportsPageContent() {
           </h1>
           <p className="text-sm text-petra-muted mt-1">סיכום תפעולי · אימונים · שיבוצים</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => window.print()}
             className="btn-secondary flex items-center gap-2 text-sm px-3 py-2 print:hidden"
