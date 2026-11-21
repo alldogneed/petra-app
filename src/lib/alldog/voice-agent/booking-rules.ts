@@ -19,7 +19,7 @@ export const VOICE_LEAD_SOURCE = "טלפון · סוכן קולי";
 /** Racheli's stage after a sales call is booked — found by NAME, never created automatically. */
 export const SALES_CALL_STAGE_NAME = "תואמה שיחת מכירה";
 /** Prefix of the voice agent's lines in the lead journal. */
-export const VOICE_LOG_PREFIX = "[שיחת טלפון · אלירן]";
+export const VOICE_LOG_PREFIX = "[שיחת טלפון · אלירן, סוכן קולי]";
 /** Same task titles as the WhatsApp bot (src/lib/alldog-bot/actions.ts), so an open task from either channel counts. */
 export const CALLBACK_TASK_PREFIX = "לחזור טלפונית";
 export const URGENT_TITLE_PREFIX = "דחוף: ";

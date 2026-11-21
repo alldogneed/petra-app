@@ -134,14 +134,14 @@ describe("voice summary: the same base + what a phone call needs", () => {
   const voice = parseVoiceSummary(JSON.stringify({ ...RAW, urgency: "נשך את הבן ביד", urgency_level: "high", caller_name: "דנה", event_when: "אתמול בערב", relevant: true }))!;
   it("the journal text: the phone header with date, time and duration, then exactly the WhatsApp lines, then when + outcome", () => {
     const lines = formatVoiceSummary({ sum: voice, dateLabel: "21/11 09:49", durationSeconds: 139, outcomeLine: "דחוף · לחזור טלפונית: היום עד 10:19" }).split("\n");
-    expect(lines[0]).toBe("[שיחת טלפון · אלירן] סיכום שיחה (21/11 09:49 · 2:19 דק׳)");
+    expect(lines[0]).toBe("[שיחת טלפון · אלירן, סוכן קולי] סיכום שיחה (21/11 09:49 · 2:19 דק׳)");
     expect(lines.slice(1, 1 + summaryBodyLines(voice).length)).toEqual(summaryBodyLines(voice));
     expect(lines.slice(-2)).toEqual(["מתי קרה: אתמול בערב", "תוצאה: דחוף · לחזור טלפונית: היום עד 10:19"]);
     expect(VOICE_SUMMARY_HEADER).not.toBe(SUMMARY_HEADER);
   });
   it("no summary (caller silent / the summary failed) → the note instead of the lines", () => {
     expect(formatVoiceSummary({ sum: null, dateLabel: null, durationSeconds: null, outcomeLine: "מספר חסוי · אין למי לחזור", note: "המתקשר לא דיבר בשיחה." }))
-      .toBe("[שיחת טלפון · אלירן] סיכום שיחה\nהמתקשר לא דיבר בשיחה.\nתוצאה: מספר חסוי · אין למי לחזור");
+      .toBe("[שיחת טלפון · אלירן, סוכן קולי] סיכום שיחה\nהמתקשר לא דיבר בשיחה.\nתוצאה: מספר חסוי · אין למי לחזור");
   });
   it("the alert's one line: the problem, the urgency and the dog", () => {
     expect(summaryOneLine(voice)).toBe("נובח על כלבים · דחיפות: נשך את הבן ביד · כלב: יוקי · רועה גרמני · 4 חודשים");

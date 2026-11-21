@@ -14,7 +14,7 @@ import { allDogAnthropicKey, botModel } from "@/lib/alldog/config";
 export type SummaryChannel = "whatsapp" | "voice";
 
 export const SUMMARY_HEADER = "[וואטסאפ · בוט] סיכום שיחה";
-export const VOICE_SUMMARY_HEADER = "[שיחת טלפון · אלירן] סיכום שיחה";
+export const VOICE_SUMMARY_HEADER = "[שיחת טלפון · אלירן, סוכן קולי] סיכום שיחה";
 
 /**
  * Item 39 (27/10): plain "string" fields — "" = not said (parseBotSummary turns it into null).
@@ -192,7 +192,7 @@ export function durationLabel(seconds: number | null | undefined): string | null
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} דק׳`;
 }
 
-/** "[שיחת טלפון · אלירן] סיכום שיחה (21/11 09:49 · 2:19 דק׳)" */
+/** "[שיחת טלפון · אלירן, סוכן קולי] סיכום שיחה (21/11 09:49 · 2:19 דק׳)" */
 export function voiceSummaryHeader(dateLabel: string | null, durationSeconds: number | null | undefined): string {
   const bits = [dateLabel, durationLabel(durationSeconds)].filter(Boolean);
   return bits.length ? `${VOICE_SUMMARY_HEADER} (${bits.join(" · ")})` : VOICE_SUMMARY_HEADER;
