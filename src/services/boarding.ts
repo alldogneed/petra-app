@@ -85,6 +85,8 @@ export interface CreateBoardingStayInput {
   roomId?: string | null;
   yardId?: string | null;
   status?: string;
+  /** "שמור זמנית – ממתין לחוזה" — only meaningful while reserved. */
+  isTentative?: boolean;
   notes?: string | null;
   assignedToUserId?: string | null;
 }
@@ -95,6 +97,8 @@ export interface UpdateBoardingStayInput {
   checkOut?: string | null;
   actualCheckoutTime?: string;
   status?: "reserved" | "checked_in" | "checked_out" | "canceled";
+  /** "שמור זמנית – ממתין לחוזה" — only meaningful while reserved. */
+  isTentative?: boolean;
   roomId?: string | null;
   yardId?: string | null;
   notes?: string | null;
@@ -357,7 +361,7 @@ export async function createBoardingStay(
     throw new ServiceError("פנסיון זמין רק בתוכנית בסיסית ומעלה", "UNAUTHORIZED");
   }
 
-  const { checkIn, checkOut, petId, customerId, roomId, yardId, status, notes, assignedToUserId } = input;
+  const { checkIn, checkOut, petId, customerId, roomId, yardId, status, notes, assignedToUserId, isTentative } = input;
 
   if (!checkIn || !petId) throw new ServiceError("Missing required fields: checkIn, petId", "VALIDATION");
   if (notes && (typeof notes !== "string" || notes.length > 2000)) {
@@ -429,6 +433,7 @@ export async function createBoardingStay(
       roomId: roomId || null,
       yardId: yardId || null,
       status: (status && ["reserved", "checked_in", "checked_out", "canceled"].includes(status) ? status : "reserved") as string,
+      isTentative: isTentative === true && (!status || status === "reserved"),
       notes: notes || null,
       assignedToUserId: assignedToUserId || null,
     },
@@ -531,6 +536,9 @@ export async function updateBoardingStay(
       ...(input.checkOut !== undefined && { checkOut: input.checkOut ? stayTime(input.checkOut) : null }),
       ...(input.actualCheckoutTime && { checkOut: new Date(input.actualCheckoutTime) }),
       ...(input.status !== undefined && { status: input.status }),
+      // A tentative hold ends once the stay is confirmed, starts or is cancelled.
+      ...(input.isTentative !== undefined && { isTentative: input.isTentative === true && finalStatus === "reserved" }),
+      ...(input.isTentative === undefined && input.status !== undefined && input.status !== "reserved" && { isTentative: false }),
       ...(input.roomId !== undefined && { roomId: input.roomId }),
       ...(input.yardId !== undefined && { yardId: input.yardId }),
       ...(notesUpdate !== undefined && { notes: notesUpdate }),
@@ -539,7 +547,7 @@ export async function updateBoardingStay(
       ...(input.dailyTrainingMinutes !== undefined && { dailyTrainingMinutes: input.dailyTrainingMinutes }),
     },
     select: {
-      id: true, checkIn: true, checkOut: true, status: true, notes: true,
+      id: true, checkIn: true, checkOut: true, status: true, isTentative: true, notes: true,
       feedingPlan: true, medicalNeeds: true, dailyTrainingMinutes: true,
       businessId: true, customerId: true, petId: true, roomId: true,
       room: { select: { id: true, name: true } },

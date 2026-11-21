@@ -587,6 +587,9 @@ model BoardingStay {
   notes                 String?
   dailyTrainingMinutes  Int?
   status                String    @default("reserved")
+  // "שמור זמנית – ממתין לחוזה": a reserved stay that holds the room until the meeting + signed
+  // contract (גבעת הכלבים 21/11/2026). Occupies the room like any reserved stay.
+  isTentative           Boolean   @default(false)
   roomId       String?
   yardId       String?   // optional yard assignment (independent of room)
   petId        String
