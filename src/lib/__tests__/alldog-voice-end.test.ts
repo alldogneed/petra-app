@@ -138,8 +138,9 @@ describe("callback task after a call without /book or /details", () => {
   it("hidden number → no task", () => {
     expect(callbackDecision({ ...base, phoneNorm: null })).toEqual({ open: false, reason: "hidden_number" });
   });
-  it("under 10 seconds AND the caller said nothing → no task", () => {
-    expect(callbackDecision({ ...base, durationSeconds: 9, userWords: false })).toEqual({ open: false, reason: "silent_short_call" });
+  it("the caller said nothing, even in a 1-second call → still a lead + task (every lead matters)", () => {
+    expect(callbackDecision({ ...base, durationSeconds: 1, userWords: false })).toEqual({ open: true });
+    expect(callbackDecision({ ...base, durationSeconds: 9, userWords: false })).toEqual({ open: true });
   });
   it("short but the caller spoke, or silent but long → task", () => {
     expect(callbackDecision({ ...base, durationSeconds: 6, userWords: true })).toEqual({ open: true });

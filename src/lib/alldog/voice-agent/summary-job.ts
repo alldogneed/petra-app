@@ -123,7 +123,7 @@ async function applySummaryToLead(row: CallRow, s: VoiceSummary, now: Date): Pro
   }
 }
 
-async function outcomeLine(row: CallRow, decision: CallbackDecision | null): Promise<string> {
+async function outcomeLine(row: CallRow, decision: CallbackDecision | null, spoke = true): Promise<string> {
   const rep = voiceAgentSettings().salesRepName;
   const callAt = row.startedAt ?? row.createdAt;
   const due = `לחזור טלפונית: ${callbackDueLabel(callbackDueAt(callAt), callAt)}`;
@@ -139,7 +139,7 @@ async function outcomeLine(row: CallRow, decision: CallbackDecision | null): Pro
     case "not_relevant": return "לא רלוונטי (לפי הסיכום)";
     case "hung_up_early":
       if (decision && !decision.open && decision.reason === "hidden_number") return "מספר חסוי · אין למי לחזור";
-      if (decision && !decision.open && decision.reason === "silent_short_call") return "שיחה קצרה, המתקשר לא דיבר";
+      if (!spoke) return `המתקשר ניתק בלי לדבר עם הסוכן הקולי · ${due}`;
       return `השיחה הסתיימה בלי שנאספו פרטים · ${due}`;
     default: return "לא ידוע";
   }
@@ -174,7 +174,6 @@ function mergedBrief(existing: unknown, s: VoiceSummary): Record<string, string 
 async function alertRep(row: CallRow, decision: CallbackDecision | null, line: string | null): Promise<void> {
   if (row.outcome === "not_relevant") return;
   const noLead = !row.leadId;
-  if (noLead && decision && !decision.open && decision.reason === "silent_short_call") return;
   if (noLead && !hasUserWords(storedTranscript(row).turns)) return;
   const callAt = row.startedAt ?? row.createdAt;
   let displayName = row.callerPhoneNorm ?? "מתקשר לא מזוהה";
@@ -237,7 +236,7 @@ export async function processVoiceSummary(id: string, now: Date = new Date(), op
     }
     const text = formatVoiceSummary({
       sum: s, dateLabel: dateLabel(row.startedAt ?? row.createdAt), durationSeconds: row.durationSeconds,
-      outcomeLine: await outcomeLine(row, decision), note: s ? null : NO_WORDS_NOTE,
+      outcomeLine: await outcomeLine(row, decision, spoke), note: s ? null : NO_WORDS_NOTE,
     });
     const logId = await writeJournal(row, text);
     await prisma.voiceAgentCall.update({
