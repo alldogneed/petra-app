@@ -833,7 +833,8 @@ export async function getAnalytics(
       },
       select: { checkIn: true, checkOut: true, roomId: true },
     }),
-    db.room.findMany({ where: { businessId, isActive: true }, select: { id: true, capacity: true } }),
+    // "רישום בלבד" rooms (intro meetings / settling-in) are not sleeping places → out of occupancy.
+    db.room.findMany({ where: { businessId, isActive: true, registrationOnly: false }, select: { id: true, capacity: true } }),
     canSeeRevenue
       ? db.payment.findMany({
           where: { businessId, status: "paid", paidAt: { gte: monthlyFrom, lt: monthlyTo } },

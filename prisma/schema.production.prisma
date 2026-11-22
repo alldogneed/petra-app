@@ -630,6 +630,10 @@ model Room {
   pricePerNight Float?
   businessId    String
   isActive      Boolean  @default(true)
+  // "רישום בלבד": a room for intro meetings / settling-in days, not for sleeping. Stays can be
+  // booked in it (its own capacity still applies) but it is left out of occupancy figures and
+  // availability searches (גבעת הכלבים 21/11/2026).
+  registrationOnly Boolean @default(false)
   sortOrder     Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
