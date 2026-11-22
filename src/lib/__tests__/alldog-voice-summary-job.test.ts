@@ -93,6 +93,18 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 describe("the summary is always written", () => {
+  it("the caller said nothing (a 1-second call) → still a lead + task, like a missed call; no Claude call; the rep is alerted", async () => {
+    const c = call({ durationSeconds: 1, transcript: { turns: [{ role: "agent", message: "שלום, הגעתם ל-AllDog.", t: 0 }], omittedTurns: 0, providerSummary: null, terminationReason: null } });
+    expect(await processVoiceSummary(String(c.id), NOW)).toBe("done");
+    expect(summarize).not.toHaveBeenCalled();
+    expect(leads).toHaveLength(1);
+    expect(leads[0]).toMatchObject({ phone: "0541110001" });
+    expect(events).toEqual(["lead-created", "task"]);
+    const lines = String(journal[0].summary).split("\n");
+    expect(lines[1]).toBe("המתקשר לא דיבר בשיחה.");
+    expect(lines[2]).toBe("תוצאה: המתקשר ניתק בלי לדבר עם הסוכן הקולי · לחזור טלפונית: היום עד 10:27");
+    expect(repAlerts).toHaveLength(1);
+  });
   it("save_details was NOT called: lead created with the name, city and dog the summary heard, task opened, journal line, rep alerted once", async () => {
     summarize.mockResolvedValue(sum());
     const c = call();
@@ -199,13 +211,6 @@ describe("calls nobody can or should return", () => {
     expect(leads).toHaveLength(0);
     expect(events).toEqual([]);
     expect(c.outcome).toBe("not_relevant");
-    expect(repAlerts).toHaveLength(0);
-  });
-  it("the caller said nothing in a short call: no Claude call, no lead, no alert", async () => {
-    const c = call({ durationSeconds: 6, transcript: { turns: [{ role: "agent", message: "שלום", t: 0 }], omittedTurns: 0, providerSummary: null, terminationReason: null } });
-    expect(await processVoiceSummary(String(c.id), NOW)).toBe("done");
-    expect(summarize).not.toHaveBeenCalled();
-    expect(leads).toHaveLength(0);
     expect(repAlerts).toHaveLength(0);
   });
 });

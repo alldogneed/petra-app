@@ -141,11 +141,12 @@ export function isRealVoiceConversation(outcome: string | null | undefined): boo
 
 export type CallbackDecision =
   | { open: true }
-  | { open: false; reason: "tool_outcome" | "hidden_number" | "silent_short_call" | "not_relevant" };
+  | { open: false; reason: "tool_outcome" | "hidden_number" | "not_relevant" };
 
 /**
- * A call that ended without /book or /details gets the "לחזור טלפונית" task — unless the number is
- * hidden, or it was shorter than 10 seconds and the caller said nothing.
+ * A call that ended without /book or /details gets a lead + the "לחזור טלפונית" task — unless the
+ * number is hidden. A caller who said nothing (even a 1-second call) gets them too (Or, 22/11/2026:
+ * "every lead matters, not everyone wants to talk to a voice agent") — like a missed call.
  */
 export function callbackDecision(c: {
   outcome: string | null;
@@ -158,7 +159,6 @@ export function callbackDecision(c: {
   if (c.outcome) return { open: false, reason: "tool_outcome" };
   if (c.relevant === false) return { open: false, reason: "not_relevant" };
   if (!c.phoneNorm) return { open: false, reason: "hidden_number" };
-  if (!c.userWords && (c.durationSeconds ?? 0) < SILENT_CALL_MAX_SECONDS) return { open: false, reason: "silent_short_call" };
   return { open: true };
 }
 
