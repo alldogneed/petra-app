@@ -28,12 +28,12 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
-    const { name, capacity, type, pricePerNight } = body;
+    const { name, capacity, type, pricePerNight, registrationOnly } = body;
     const parsedPrice = pricePerNight != null ? Number(pricePerNight) : null;
 
     let room;
     try {
-      room = await createRoom(authResult.businessId, prisma, { name, capacity, type, pricePerNight: parsedPrice });
+      room = await createRoom(authResult.businessId, prisma, { name, capacity, type, pricePerNight: parsedPrice, registrationOnly: registrationOnly === true });
     } catch (e) {
       if (e instanceof ServiceError) return NextResponse.json({ error: e.message }, { status: 400 });
       throw e;

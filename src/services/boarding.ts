@@ -128,6 +128,7 @@ export interface CreateRoomInput {
   capacity?: number;
   type?: string;
   pricePerNight?: number | null;
+  registrationOnly?: boolean;
 }
 
 export type UpdateRoomData = {
@@ -136,6 +137,7 @@ export type UpdateRoomData = {
   type?: string;
   status?: string;
   pricePerNight?: number | null;
+  registrationOnly?: boolean;
 };
 
 export interface CreateYardInput {
@@ -723,13 +725,13 @@ export async function listRooms(businessId: string, db: DbClient) {
 }
 
 export async function createRoom(businessId: string, db: DbClient, input: CreateRoomInput) {
-  const { name, capacity, type, pricePerNight } = input;
+  const { name, capacity, type, pricePerNight, registrationOnly } = input;
   if (!name?.trim()) throw new ServiceError("שם החדר הוא שדה חובה", "VALIDATION");
   if (pricePerNight !== null && pricePerNight !== undefined && (isNaN(pricePerNight) || pricePerNight < 0)) {
     throw new ServiceError("מחיר ללילה לא תקין", "VALIDATION");
   }
   return db.room.create({
-    data: { businessId, name: name.trim(), capacity: capacity || 1, type: type || "standard", pricePerNight: pricePerNight ?? null },
+    data: { businessId, name: name.trim(), capacity: capacity || 1, type: type || "standard", pricePerNight: pricePerNight ?? null, registrationOnly: registrationOnly === true },
     include: {
       _count: { select: { boardingStays: { where: { status: { in: ["reserved", "checked_in"] } } } } },
       boardingStays: {
@@ -759,6 +761,7 @@ export async function updateRoom(businessId: string, db: DbClient, id: string, d
   if (data.type !== undefined) update.type = data.type;
   if (data.status !== undefined) update.status = data.status;
   if ("pricePerNight" in data) update.pricePerNight = data.pricePerNight;
+  if (data.registrationOnly !== undefined) update.registrationOnly = data.registrationOnly === true;
   return db.room.update({
     where: { id, businessId },
     data: update,

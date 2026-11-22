@@ -108,6 +108,8 @@ interface Room {
   status: string;
   isActive: boolean;
   pricePerNight: number | null;
+  /** "רישום בלבד" — intro meetings / settling-in, not counted in occupancy or availability. */
+  registrationOnly?: boolean;
   _count: { boardingStays: number };
   boardingStays: RoomStay[];
 }
@@ -533,7 +535,9 @@ function OccupancyCalendar({
   calendarMonth: Date;
   onChangeMonth: (d: Date) => void;
 }) {
-  const totalCapacity = rooms.reduce((sum, r) => sum + r.capacity, 0);
+  // "רישום בלבד" rooms are not sleeping places: neither their capacity nor their stays count.
+  const regOnlyIds = useMemo(() => new Set(rooms.filter((r) => r.registrationOnly).map((r) => r.id)), [rooms]);
+  const totalCapacity = rooms.filter((r) => !r.registrationOnly).reduce((sum, r) => sum + r.capacity, 0);
   const todayStr = toDateStr(new Date());
   const year = calendarMonth.getFullYear();
   const month = calendarMonth.getMonth();
@@ -547,6 +551,7 @@ function OccupancyCalendar({
       const activeOnDay = stays.filter(
         (s) =>
           ACTIVE_STATUSES.includes(s.status) &&
+          !(s.room && regOnlyIds.has(s.room.id)) &&
           toDateStr(s.checkIn) <= dateStr &&
           (!s.checkOut || toDateStr(s.checkOut) > dateStr)
       );
@@ -1387,6 +1392,9 @@ function TimelineView({
                     style={{ backgroundColor: statusColor }}
                   />
                   <span className={cn("font-medium text-petra-text truncate", compact ? "text-[10px]" : "text-xs")}>{room.name}</span>
+                  {room.registrationOnly && (
+                    <span className={cn("text-slate-500 whitespace-nowrap", compact ? "text-[8px]" : "text-[9px]")} title="רישום בלבד — לא נספר בתפוסה">רישום</span>
+                  )}
                   <span className={cn("text-petra-muted ms-auto", compact ? "text-[8px]" : "text-[9px]")}>{room._count.boardingStays}/{room.capacity}</span>
                 </div>
 
@@ -2860,8 +2868,8 @@ function BoardingPageContent() {
   // Rooms manager
   const [showRoomsManager, setShowRoomsManager] = useState(false);
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
-  const [editRoomForm, setEditRoomForm] = useState({ name: "", capacity: 1, type: "standard", pricePerNight: "" as string | number });
-  const [newRoomForm, setNewRoomForm] = useState({ name: "", capacity: 1, type: "standard", pricePerNight: "" as string | number });
+  const [editRoomForm, setEditRoomForm] = useState({ name: "", capacity: 1, type: "standard", pricePerNight: "" as string | number, registrationOnly: false });
+  const [newRoomForm, setNewRoomForm] = useState({ name: "", capacity: 1, type: "standard", pricePerNight: "" as string | number, registrationOnly: false });
 
   const queryClient = useQueryClient();
 
@@ -3271,7 +3279,7 @@ function BoardingPageContent() {
   });
 
   const createRoomMutation = useMutation({
-    mutationFn: (data: { name: string; capacity: number; type: string; pricePerNight: string | number }) =>
+    mutationFn: (data: { name: string; capacity: number; type: string; pricePerNight: string | number; registrationOnly: boolean }) =>
       fetch("/api/boarding/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3279,14 +3287,14 @@ function BoardingPageContent() {
       }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      setNewRoomForm({ name: "", capacity: 1, type: "standard", pricePerNight: "" });
+      setNewRoomForm({ name: "", capacity: 1, type: "standard", pricePerNight: "", registrationOnly: false });
       toast.success("החדר נוצר בהצלחה");
     },
     onError: () => toast.error("שגיאה ביצירת החדר. נסה שוב."),
   });
 
   const updateRoomMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name: string; capacity: number; type: string; pricePerNight: string | number }) =>
+    mutationFn: ({ id, ...data }: { id: string; name: string; capacity: number; type: string; pricePerNight: string | number; registrationOnly: boolean }) =>
       fetch(`/api/boarding/rooms/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -3326,7 +3334,7 @@ function BoardingPageContent() {
 
   function startEditRoom(room: Room) {
     setEditingRoomId(room.id);
-    setEditRoomForm({ name: room.name, capacity: room.capacity, type: room.type, pricePerNight: room.pricePerNight ?? "" });
+    setEditRoomForm({ name: room.name, capacity: room.capacity, type: room.type, pricePerNight: room.pricePerNight ?? "", registrationOnly: room.registrationOnly === true });
   }
 
   // ── Check-in/out via dialog ──
@@ -3565,8 +3573,9 @@ function BoardingPageContent() {
   [occStays]);
 
   // ── Room stats for header ──
-  const availableRooms = rooms.filter((r) => getRoomDisplayStatus(r) === "available").length;
-  const occupiedRooms = rooms.filter((r) => getRoomDisplayStatus(r) === "occupied").length;
+  // "רישום בלבד" rooms are left out of the free / occupied counters.
+  const availableRooms = rooms.filter((r) => !r.registrationOnly && getRoomDisplayStatus(r) === "available").length;
+  const occupiedRooms = rooms.filter((r) => !r.registrationOnly && getRoomDisplayStatus(r) === "occupied").length;
   const cleaningRooms = rooms.filter((r) => getRoomDisplayStatus(r) === "needs_cleaning").length;
 
   return (
@@ -4270,6 +4279,18 @@ function BoardingPageContent() {
                             />
                           </div>
                         </div>
+                        <label className="flex items-start gap-2 text-xs text-petra-text cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={editRoomForm.registrationOnly}
+                            onChange={(e) => setEditRoomForm({ ...editRoomForm, registrationOnly: e.target.checked })}
+                          />
+                          <span>
+                            <span className="font-medium">רישום בלבד (לא נספר בתפוסה)</span>
+                            <span className="block text-[11px] text-petra-muted">החדר מופיע ביומן ואפשר לרשום בו שהיות, אבל הוא לא נספר בתפוסה ובבדיקות זמינות (למשל חדרי התרשמות והרגלה)</span>
+                          </span>
+                        </label>
                         <div className="flex gap-2 pt-1">
                           <button
                             className="btn-primary text-xs flex-1"
@@ -4292,6 +4313,9 @@ function BoardingPageContent() {
                         <DoorOpen className="w-4 h-4 text-brand-400 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <span className="text-sm font-semibold text-petra-text">{room.name}</span>
+                          {room.registrationOnly && (
+                            <span className="mr-2 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">רישום בלבד</span>
+                          )}
                           <span className="text-xs text-petra-muted mr-2">· קיבולת {room.capacity}</span>
                           <span className="text-xs text-petra-muted">· {room._count.boardingStays} פעילות</span>
                           {room.pricePerNight != null && (
@@ -4369,6 +4393,18 @@ function BoardingPageContent() {
                     />
                   </div>
                 </div>
+                <label className="flex items-start gap-2 text-sm text-petra-text cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={newRoomForm.registrationOnly}
+                    onChange={(e) => setNewRoomForm({ ...newRoomForm, registrationOnly: e.target.checked })}
+                  />
+                  <span>
+                    <span className="font-medium">רישום בלבד (לא נספר בתפוסה)</span>
+                    <span className="block text-xs text-petra-muted">החדר מופיע ביומן ואפשר לרשום בו שהיות, אבל הוא לא נספר בתפוסה ובבדיקות זמינות (למשל חדרי התרשמות והרגלה)</span>
+                  </span>
+                </label>
                 <button
                   className="btn-primary w-full"
                   disabled={!newRoomForm.name.trim() || createRoomMutation.isPending}
@@ -4657,7 +4693,7 @@ function BoardingPageContent() {
                       const todayCount = roomTodayCount[r.id] ?? 0;
                       return (
                         <option key={r.id} value={r.id}>
-                          {r.name} (היום {todayCount}/{r.capacity}){roomStatus === "needs_cleaning" ? " — דרוש ניקיון" : ""}
+                          {r.name} (היום {todayCount}/{r.capacity}){r.registrationOnly ? " · רישום בלבד" : ""}{roomStatus === "needs_cleaning" ? " — דרוש ניקיון" : ""}
                         </option>
                       );
                     })}
