@@ -22,7 +22,7 @@ export async function PATCH(
 
     // Structure changes (name/capacity/type/price) need BOARDING_MANAGE; a status-only
     // update (e.g. "mark clean") is daily operational work and stays open.
-    const changesStructure = ["name", "capacity", "type", "pricePerNight"].some((k) => k in body);
+    const changesStructure = ["name", "capacity", "type", "pricePerNight", "registrationOnly"].some((k) => k in body);
     if (changesStructure && !sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.BOARDING_MANAGE)) {
       return NextResponse.json({ error: "אין לך הרשאה לנהל חדרים וחצרות בפנסיון" }, { status: 403 });
     }
@@ -33,6 +33,7 @@ export async function PATCH(
     if (type !== undefined) data.type = type;
     if (status !== undefined) data.status = status;
     if ("pricePerNight" in body) data.pricePerNight = pricePerNight != null ? Number(pricePerNight) : null;
+    if ("registrationOnly" in body) data.registrationOnly = body.registrationOnly === true;
 
     let room;
     try {

@@ -26,7 +26,7 @@ import { syncLeadToGoogleContacts } from "@/lib/google-contacts";
 import { formatPetNotesBlock } from "@/lib/lead-pet-notes";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, updateCustomer, mergeClientTags, createLead, updateLead, listTasks, getCustomerSalesHistory, type UpdateCustomerInput } from "@/services/clients";
 import { parseTagList } from "@/lib/customer-filters";
-import { listCustomerStays } from "@/services/customer-boarding";
+import { listCustomerStays, TENTATIVE_STAY_LABEL } from "@/services/customer-boarding";
 import { attachAppointmentToProgram } from "@/services/training-appointments";
 import { cancelTrainingSessionReminder } from "@/lib/reminder-service";
 import { SALES_JOURNAL_KIND_LABELS, TASK_STATUS_LABELS, type SalesHistoryLead } from "@/lib/lead-sales-history";
@@ -61,6 +61,8 @@ import { registerTrainingTools } from "@/lib/mcp/tools-training";
 import { registerFinanceTools, orderPaymentStatus, ORDER_PAY_STATUS_HE, pageWindow, pageHeader, pageNextHint, shiftYmd } from "@/lib/mcp/tools-finance";
 import { registerCalendarTools, findAppointmentConflicts } from "@/lib/mcp/tools-calendar";
 import { registerHoursTools } from "@/lib/mcp/tools-hours";
+import { registerDocumentsTools, formatDocumentsSummaryLine } from "@/lib/mcp/tools-documents";
+import { getClientDocuments } from "@/services/client-documents";
 
 // ─── Scopes ───────────────────────────────────────────────────────────────────
 
@@ -1318,6 +1320,15 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         summaryLines.push(`סה"כ: ${summary.counts.appointments} תורים (${summary.counts.upcomingAppointments} עתידיים, ${summary.counts.pastVisits} ביקורים) · ${summary.counts.pets} חיות · ${summary.counts.orders} הזמנות`);
         sections.push(...summaryLines);
 
+        // Documents + contract — same CUSTOMERS_PII gate as list_client_documents; never fails get_client.
+        if (hasPermission(TENANT_PERMS.CUSTOMERS_PII)) {
+          try {
+            sections.push(formatDocumentsSummaryLine(await getClientDocuments(businessId, c.id)));
+          } catch {
+            // skip the line silently — the core client card is still returned
+          }
+        }
+
         if (c.pets.length) {
           sections.push(`\n🐾 חיות (${c.pets.length}):`);
           for (const p of c.pets.slice(0, 10)) {
@@ -1359,7 +1370,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
                 const range = `${heDate(st.checkIn)}${st.checkOut ? ` – ${heDate(st.checkOut)}` : " (ללא צ'ק-אאוט)"}`;
                 const room = st.room?.name ? ` | חדר: ${safeField(st.room.name, 30)}` : "";
                 const paid = canSeeMoney ? ` | שולם: ${formatShekel(st.paidAmount)}` : "";
-                sections.push(`• ${range} — ${safeField(st.pet?.name, 40) || "?"}${room} [${STAY_STATUS_HE[st.status] ?? safeField(st.status, 20)}]${paid} (id: ${st.id})`);
+                sections.push(`• ${range} — ${safeField(st.pet?.name, 40) || "?"}${room} [${STAY_STATUS_HE[st.status] ?? safeField(st.status, 20)}]${st.isTentative ? ` ⏳ ${TENTATIVE_STAY_LABEL}` : ""}${paid} (id: ${st.id})`);
               }
               if (total > stays.length) sections.push(`— לכל השהיות: list_boarding_stays עם customer_id=${c.id}`);
             }
@@ -1551,7 +1562,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           const range = `${heDate(s.checkIn)}${s.checkOut ? ` עד ${heDate(s.checkOut)}` : " (ללא צ'ק-אאוט)"}`;
           const room = s.room?.name ? ` | חדר: ${safeField(s.room.name, 30)}` : s.yard?.name ? ` | חצר: ${safeField(s.yard.name, 30)}` : "";
           const paid = canSeeMoney ? ` | שולם: ₪${s.payments.reduce((sum, p) => sum + (p.amount ?? 0), 0).toLocaleString("he-IL")}` : "";
-          return `• ${safeField(s.pet?.name) || "?"} (${safeField(s.customer?.name) || "לקוח לא ידוע"}) — ${range} [${STAY_STATUS_HE[s.status] ?? safeField(s.status, 20)}]${room}${paid} (id: ${s.id})`;
+          return `• ${safeField(s.pet?.name) || "?"} (${safeField(s.customer?.name) || "לקוח לא ידוע"}) — ${range} [${STAY_STATUS_HE[s.status] ?? safeField(s.status, 20)}]${s.status === "reserved" && s.isTentative ? ` ⏳ ${TENTATIVE_STAY_LABEL}` : ""}${room}${paid} (id: ${s.id})`;
         });
         return textResult(`${pageHeader(page, total, "שהיות")}\n${lines.join("\n")}${pageNextHint(page, total)}`);
       } catch (e) {
@@ -1605,6 +1616,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   registerCalendarTools(server, ctx);
   registerHoursTools(server, ctx);
   registerSupportTools(server, ctx);
+  registerDocumentsTools(server, ctx);
 
   return server;
 }
