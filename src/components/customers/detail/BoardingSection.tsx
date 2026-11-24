@@ -163,7 +163,7 @@ export function BoardingSection({ customerId }: { customerId: string }) {
                   )}
                 </div>
               </Link>
-              {canSeeFinance && (
+              {canSeeFinance && !(stay.status === "canceled" && (billing[stay.id]?.total ?? null) === null) && (
                 <StayBillingLine
                   billing={billing[stay.id]}
                   loading={billingQuery.isLoading}
