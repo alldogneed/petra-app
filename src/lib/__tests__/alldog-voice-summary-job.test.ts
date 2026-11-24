@@ -12,6 +12,8 @@ const events: string[] = [];
 const repAlerts: Row[] = [];
 const ownerAlerts: Row[] = [];
 const summarize = jest.fn();
+/** Lead ids that already carry a PayCall "missed call" journal line. */
+const missedLeads = new Set<string>();
 
 jest.mock("@/lib/prisma", () => {
   const find = (where: Row) => calls.find((c) => c.id === where.id);
@@ -26,8 +28,10 @@ jest.mock("@/lib/prisma", () => {
       },
       findUnique: async ({ where }: { where: Row }) => find(where) ?? null,
       update: async ({ where, data }: { where: Row; data: Row }) => Object.assign(find(where)!, data),
-      findMany: async () => [],
+      findMany: async ({ where }: { where: { status?: string; createdAt?: { lt: Date } } }) =>
+        where?.status ? calls.filter((c) => c.status === where.status && (c.createdAt as Date) < where.createdAt!.lt).map((c) => ({ id: c.id })) : [],
     },
+    callLog: { findFirst: async ({ where }: { where: { leadId: string } }) => (missedLeads.has(where.leadId) ? { id: "missed-1" } : null) },
     lead: { findFirst: async ({ where }: { where: Row }) => leads.find((l) => l.id === where.id) ?? null },
     leadMeeting: { findFirst: async () => null },
   };
@@ -62,7 +66,7 @@ jest.mock("@/lib/alldog/summary-core", () => ({
 }));
 
 import { parseVoiceSummary, type VoiceSummary } from "@/lib/alldog/summary-core";
-import { processVoiceSummary } from "@/lib/alldog/voice-agent/summary-job";
+import { cleanupStaleVoiceCalls, processVoiceSummary } from "@/lib/alldog/voice-agent/summary-job";
 
 const NOW = new Date("2026-11-22T08:00:00Z"); // Sunday 10:00 in Israel
 const sum = (o: Row = {}): VoiceSummary => parseVoiceSummary(JSON.stringify({
@@ -87,6 +91,7 @@ function call(o: Row = {}): Row {
 beforeEach(() => {
   calls.length = leads.length = journal.length = events.length = repAlerts.length = ownerAlerts.length = 0;
   summarize.mockReset();
+  missedLeads.clear();
   jest.spyOn(console, "warn").mockImplementation(() => undefined);
   jest.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -235,5 +240,34 @@ describe("the summary failed", () => {
     expect(String(journal[0].summary)).toContain("הסיכום הרגיל נכשל");
     expect(events).toContain("failure-alert");
     expect(c.summaryNextAt).toBeNull();
+  });
+});
+
+describe("a call whose end-of-call webhook never arrived", () => {
+  const stale = (o: Row = {}) => call({ status: "in_progress", transcript: null, durationSeconds: null, createdAt: new Date(NOW.getTime() - 16 * 60_000), startedAt: new Date(NOW.getTime() - 16 * 60_000), ...o });
+
+  it("younger than 15 minutes → left alone", async () => {
+    stale({ createdAt: new Date(NOW.getTime() - 14 * 60_000) });
+    expect(await cleanupStaleVoiceCalls({ limit: 20 }, NOW)).toEqual({ failed: 0 });
+    expect(events).toEqual([]);
+  });
+  it("after 15 minutes, no missed-call line → failed, lead + callback task, a journal line, Or is alerted", async () => {
+    const c = stale();
+    expect(await cleanupStaleVoiceCalls({ limit: 20 }, NOW)).toEqual({ failed: 1 });
+    expect(c.status).toBe("failed");
+    expect(events).toEqual(["lead-created", "task"]);
+    expect(String(journal[0].summary)).toContain("הסיכום של השיחה לא התקבל מהסוכן הקולי.");
+    expect(c.summaryCallLogId).toBe("log-1");
+    expect(ownerAlerts).toHaveLength(1);
+  });
+  it("PayCall already wrote the call as missed (the caller hung up during the forward) → one journal line, no second task, no alert", async () => {
+    leads.push({ id: "lead-9", phone: "0541110001", name: "שיחה מ-0541110001", city: null, dog: null });
+    missedLeads.add("lead-9");
+    const c = stale();
+    expect(await cleanupStaleVoiceCalls({ limit: 20 }, NOW)).toEqual({ failed: 1 });
+    expect(events).toEqual([]);
+    expect(String(journal[0].summary).split("\n")[1]).toBe("השיחה הועברה לסוכן הקולי, והמתקשר ניתק לפני שדיבר.");
+    expect(c).toMatchObject({ outcome: "hung_up_early", leadId: "lead-9" });
+    expect(ownerAlerts).toHaveLength(0);
   });
 });

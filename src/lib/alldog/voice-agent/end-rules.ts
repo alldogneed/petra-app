@@ -23,8 +23,16 @@ export const SUMMARY_FIRST_DELAY_MS = 20 * 1000;
 /** Retry delays after attempt 1, 2, 3, 4 (same as the PayCall queue); attempt 5 is final. */
 export const SUMMARY_RETRY_DELAYS_MIN = [3, 10, 30, 120] as const;
 export const SUMMARY_MAX_ATTEMPTS = SUMMARY_RETRY_DELAYS_MIN.length + 1;
-/** A call still "in_progress" this long after it started had no end-of-call webhook → failed + cleanup. */
-export const STALE_CALL_MS = 60 * 60 * 1000;
+/**
+ * A call still "in_progress" this long after it started had no end-of-call webhook → failed + cleanup.
+ * 15 minutes (was 60): a call with the voice agent lasts a minute or two, and a caller who hung up
+ * while being forwarded waited an hour for the callback task (23/11/2026).
+ */
+export const STALE_CALL_MS = 15 * 60 * 1000;
+/** A PayCall "missed call" journal line this close to the voice call = the same call (the caller hung up during the forward). */
+export const MISSED_CALL_MATCH_MS = 10 * 60 * 1000;
+/** The journal line for a call that reached the voice agent but never connected. */
+export const HUNG_UP_BEFORE_TALKING_LINE = "השיחה הועברה לסוכן הקולי, והמתקשר ניתק לפני שדיבר.";
 
 export type SignatureCheck = { ok: true } | { ok: false; reason: "missing_header" | "malformed" | "too_old" | "mismatch" };
 
