@@ -1398,7 +1398,7 @@ function TimelineView({
                     style={{ backgroundColor: statusColor }}
                   />
                   <span className={cn("font-medium text-petra-text truncate", compact ? "text-[10px]" : "text-xs")}>{room.name}</span>
-                  {room.registrationOnly && (
+                  {room.registrationOnly && !narrow && (
                     <span className={cn("text-slate-500 whitespace-nowrap", compact ? "text-[8px]" : "text-[9px]")} title="רישום בלבד — לא נספר בתפוסה">רישום</span>
                   )}
                   <span className={cn("text-petra-muted ms-auto", compact ? "text-[8px]" : "text-[9px]")}>{room._count.boardingStays}/{room.capacity}</span>
