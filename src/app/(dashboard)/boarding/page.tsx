@@ -64,6 +64,7 @@ import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 import { usePermissions } from "@/hooks/usePermissions";
+import { StayBillingBlock } from "@/components/boarding/StayBillingBlock";
 import { staysOverlap, staysShareNight, israelDayKey } from "@/lib/boarding-overlap";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -2108,6 +2109,15 @@ function CheckoutDialog({
             </div>
           </div>
 
+          {stay.customer && (
+            <StayBillingBlock
+              stay={stay}
+              nights={nights}
+              defaultPricePerNight={pricePerNight}
+              unitLabel={calcMode === "nights" ? "לילות" : "ימים"}
+            />
+          )}
+
           {isLate && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -2231,9 +2241,12 @@ function EditStayDialog({
   stays = [],
   onCheckin,
   onCheckout,
+  defaultPricePerNight = 0,
 }: {
   stay: BoardingStay;
   rooms: Room[];
+  /** Business default nightly price — the billing block starts from the room's price, else this. */
+  defaultPricePerNight?: number;
   /** All loaded stays — used to mark rooms that are full on the chosen dates. */
   stays?: BoardingStay[];
   /** Opens the regular check-in / check-out dialog for this stay. */
@@ -2415,9 +2428,13 @@ function EditStayDialog({
             </label>
           )}
 
-          <p className="text-xs text-petra-muted">
-            המחיר וההנחה נקבעים במסך הצ׳ק-אאוט, לפני שליחת דרישת התשלום.
-          </p>
+          {stay.customer && (
+            <StayBillingBlock
+              stay={stay}
+              nights={stay.checkOut ? calcNights(stay.checkIn, stay.checkOut) : 0}
+              defaultPricePerNight={rooms.find((r) => r.id === stay.room?.id)?.pricePerNight ?? defaultPricePerNight}
+            />
+          )}
         </div>
 
         <div className="flex gap-3 mt-6">
@@ -2866,11 +2883,11 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 function BoardingPageContent() {
-  const { canExportData, canManageBoarding } = usePermissions();
+  const { canExportData, canManageBoarding, canWritePayments } = usePermissions();
   const [showNewStay, setShowNewStay] = useState(false);
   const [careLogStay, setCareLogStay] = useState<{ id: string; petName: string } | null>(null);
   const [form, setForm] = useState({
-    customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0, assignedToUserId: "",
+    customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0, createOrder: true, assignedToUserId: "",
     // Retroactive stays (dog already in the pension before the business joined Petra):
     // "" = let the server decide (reserved), or an explicit status for backdated dates.
     status: "" as "" | "reserved" | "checked_in" | "checked_out",
@@ -3077,13 +3094,47 @@ function BoardingPageContent() {
           }),
         }).then(async (r) => { if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Failed"); } return r.json(); })
       );
-      return Promise.all(promises);
+      const created = (await Promise.all(promises)) as { id: string; checkIn: string; checkOut: string | null; petId: string }[];
+      // One payment order per stay, linked to it (round 2, דור 23/11/2026). The stays already
+      // exist — a failed order is reported but does not undo them.
+      let orderFailed = false;
+      const nights = checkOutDT ? calcNights(checkInDT, checkOutDT) : 0;
+      if (data.createOrder && canWritePayments && data.customerId && !serviceDogMode && nights > 0 && data.pricePerNight > 0) {
+        for (const stay of created) {
+          const petName = selectedCustomer?.pets.find((p) => p.id === stay.petId)?.name ?? "";
+          try {
+            const r = await fetch("/api/orders", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                customerId: data.customerId,
+                orderType: "boarding",
+                status: "confirmed",
+                petId: stay.petId,
+                startAt: stay.checkIn,
+                endAt: stay.checkOut,
+                relatedEntityType: "BoardingStay",
+                relatedEntityId: stay.id,
+                suppressPaymentRequest: true,
+                lines: [{ name: `פנסיון${petName ? ` — ${petName}` : ""}`, unit: "לילה", quantity: nights, unitPrice: data.pricePerNight }],
+              }),
+            });
+            if (!r.ok) orderFailed = true;
+          } catch {
+            orderFailed = true;
+          }
+        }
+      }
+      return { created, orderFailed, withOrder: data.createOrder && nights > 0 && data.pricePerNight > 0 && canWritePayments };
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["boarding-billing"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      if (res?.orderFailed) toast.error("השהייה נוצרה, אבל יצירת ההזמנה הכספית נכשלה — אפשר ליצור אותה מחלון השהייה");
       setShowNewStay(false);
-      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, assignedToUserId: "", status: "", isTentative: false });
+      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, createOrder: true, assignedToUserId: "", status: "", isTentative: false });
       setPickedCustomer(null);
       setServiceDogMode(false);
       toast.success("ההשמה נוצרה בהצלחה");
@@ -4978,6 +5029,17 @@ function BoardingPageContent() {
                     <span>סה״כ</span>
                     <span>₪{total.toLocaleString()}</span>
                   </div>
+                  {canWritePayments && !serviceDogMode && form.customerId && (
+                    <label className="flex items-center gap-2 pt-1.5 cursor-pointer text-sm text-petra-text">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-brand-500"
+                        checked={form.createOrder}
+                        onChange={(e) => setForm((f) => ({ ...f, createOrder: e.target.checked }))}
+                      />
+                      צור הזמנה כספית לשהייה{form.petIds.length > 1 ? " (הזמנה לכל כלב)" : ""}
+                    </label>
+                  )}
                 </div>
               );
             })()}
@@ -5033,6 +5095,7 @@ function BoardingPageContent() {
           onConfirmTentative={() => confirmTentativeMutation.mutate(editStay.id)}
           isConfirming={confirmTentativeMutation.isPending}
           stays={stays}
+          defaultPricePerNight={settings.boardingPricePerNight || 0}
           onCheckin={() => { const s = editStay; setEditStay(null); setCheckinDialogStay(s); }}
           onCheckout={() => { const s = editStay; setEditStay(null); setCheckoutDialogStay(s); }}
         />

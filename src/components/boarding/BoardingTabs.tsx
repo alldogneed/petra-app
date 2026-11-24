@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Hotel, UtensilsCrossed, Pill, Syringe, ClipboardList, ClipboardCheck, Fence } from "lucide-react";
+import { Hotel, UtensilsCrossed, Pill, Syringe, ClipboardList, ClipboardCheck, Fence, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { name: "לוח יומי",      href: "/boarding/daily", icon: ClipboardCheck  },
+  { name: "כניסות ויציאות", href: "/boarding/movements", icon: ArrowLeftRight },
   { name: "ניהול חדרים",   href: "/boarding",        icon: Hotel           },
   { name: "ניהול חצרות",   href: "/boarding/yards",  icon: Fence           },
   { name: "האכלה",         href: "/feeding",         icon: UtensilsCrossed },
