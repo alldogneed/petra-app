@@ -1056,9 +1056,9 @@ export function CreateOrderModal({
                   })}
                 </div>
               )}
-              {boardingPetIds.length > 0 && (
+              {boardingPetIds.length > 0 && createBoardingStays && (
                 <p className="text-[11px] text-brand-500 mt-1.5 flex items-center gap-1">
-                  ✓ {boardingPetIds.length === 1 ? "הכלב" : `${boardingPetIds.length} הכלבים`} יופיע{boardingPetIds.length > 1 ? "ו" : ""} אוטומטית בלוח הפנסיון תחת &quot;ממתין לשיבוץ&quot;
+                  ✓ {boardingPetIds.length === 1 ? "הכלב" : `${boardingPetIds.length} הכלבים`} יופיע{boardingPetIds.length > 1 ? "ו" : ""} בלוח הפנסיון{boardingRoomId ? "" : " תחת \"ממתין לשיבוץ\""}
                 </p>
               )}
             </div>
