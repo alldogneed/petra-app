@@ -18,7 +18,7 @@
  *   6. The rep's alert (bell + WhatsApp) with the summary line, once per call.
  * Final failure → ElevenLabs' own summary is written instead + an alert to Or (voice_summary).
  *
- * cleanupStaleVoiceCalls — a call still "in_progress" 60 minutes after it started never got its
+ * cleanupStaleVoiceCalls — a call still "in_progress" 15 minutes after it started never got its
  * webhook: marked "failed", the caller (if the number is known and no lead/task yet) gets the
  * callback task, and Or gets an alert once a day.
  */
@@ -34,6 +34,8 @@ import { callbackDueAt, callbackDueLabel, type VoiceDetails } from "@/lib/alldog
 import { alertSalesRep } from "@/lib/alldog/voice-agent/rep-alert";
 import {
   STALE_CALL_MS,
+  MISSED_CALL_MATCH_MS,
+  HUNG_UP_BEFORE_TALKING_LINE,
   callbackDecision,
   hasUserWords,
   nextSummaryAttemptAt,
@@ -41,7 +43,7 @@ import {
   type CallbackDecision,
   type StoredTranscript,
 } from "@/lib/alldog/voice-agent/end-rules";
-import { formatVoiceSummary, summarizeConversation, summaryOneLine, type VoiceSummary } from "@/lib/alldog/summary-core";
+import { formatVoiceSummary, summarizeConversation, summaryOneLine, voiceSummaryHeader, type VoiceSummary } from "@/lib/alldog/summary-core";
 
 const LOCK_MS = 5 * 60 * 1000;
 const DAY_SECONDS = 24 * 60 * 60;
@@ -307,27 +309,49 @@ export async function cleanupStaleVoiceCalls(opts: { limit: number }, now: Date 
     select: { id: true },
   });
   let failed = 0;
+  let webhookMissing = 0;
   for (const { id } of stale) {
     const claim = await prisma.voiceAgentCall.updateMany({ where: { id, status: "in_progress" }, data: { status: "failed" } });
     if (claim.count === 0) continue;
     failed++;
     const row = await loadCall(id);
     if (row && !row.outcome && row.callerPhoneNorm) {
-      // No webhook → no duration / transcript: the caller may have talked, so the callback task is opened.
       try {
+        const callAt = row.startedAt ?? row.createdAt;
         const { lead, displayName } = await saveVoiceLead(row.businessId, { conversationId: row.providerConversationId }, row.callerPhoneNorm, now);
-        await ensureCallbackTask(row.businessId, lead.id, displayName, row.callerPhoneNorm, {}, row.startedAt ?? row.createdAt);
-        await prisma.voiceAgentCall.update({ where: { id }, data: { outcome: "hung_up_early", leadId: lead.id } });
+        // PayCall already wrote this call as "missed" on the lead → the caller hung up while being
+        // forwarded: nothing failed, the lead has its missed-call handling, no second task and no alert.
+        const missed = await prisma.callLog.findFirst({
+          where: {
+            leadId: lead.id, summary: { startsWith: "[paycall] " },
+            createdAt: { gte: new Date(callAt.getTime() - MISSED_CALL_MATCH_MS), lte: new Date(callAt.getTime() + MISSED_CALL_MATCH_MS) },
+          },
+          select: { id: true },
+        });
+        const header = voiceSummaryHeader(dateLabel(callAt), null);
+        if (missed) {
+          const log = await addLeadCallLog(lead.id, `${header}\n${HUNG_UP_BEFORE_TALKING_LINE}`);
+          await prisma.voiceAgentCall.update({ where: { id }, data: { outcome: "hung_up_early", leadId: lead.id, summaryCallLogId: log.id } });
+          continue;
+        }
+        // No webhook and no missed-call line → no duration / transcript: the caller may have talked, so the callback task is opened.
+        webhookMissing++;
+        await ensureCallbackTask(row.businessId, lead.id, displayName, row.callerPhoneNorm, {}, callAt);
+        const log = await addLeadCallLog(lead.id, `${header}\nהסיכום של השיחה לא התקבל מהסוכן הקולי.\nתוצאה: לחזור טלפונית: ${callbackDueLabel(callbackDueAt(callAt), callAt)}`);
+        await prisma.voiceAgentCall.update({ where: { id }, data: { outcome: "hung_up_early", leadId: lead.id, summaryCallLogId: log.id } });
       } catch (err) {
+        webhookMissing++;
         console.error(`[alldog-voice cleanup] callback for ${id} failed`, err);
       }
+    } else {
+      webhookMissing++;
     }
   }
-  if (failed > 0 && (await claimOnce("alldog-voice-webhook-missing", DAY_SECONDS))) {
+  if (webhookMissing > 0 && (await claimOnce("alldog-voice-webhook-missing", DAY_SECONDS))) {
     await notifyOwnerAllDog({
       title: "webhook של סוף שיחה מ-ElevenLabs לא הגיע",
       lines: [
-        `${failed} שיחות קוליות נשארו "בתהליך" יותר משעה וסומנו "נכשלה".`,
+        `${webhookMissing} שיחות קוליות נשארו "בתהליך" יותר מרבע שעה וסומנו "נכשלה".`,
         "כנראה ה-webhook כבוי או מוגדר לא נכון ב-ElevenLabs (או שהניסיונות החוזרים כבויים). למי שהשאיר מספר נפתחה משימת לחזור טלפונית.",
       ],
       url: `${appUrl()}/leads`,
