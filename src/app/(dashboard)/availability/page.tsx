@@ -9,6 +9,8 @@ import { toast } from "sonner"
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { SettingsFieldset } from "@/components/settings/settings-ui";
 import { usePermissions } from "@/hooks/usePermissions";
+import { BlockMemberSelect } from "@/components/availability/BlockMemberSelect";
+import { blockMemberName } from "@/lib/availability-block-range";
 
 /** Throws with the server's Hebrew `error` (e.g. a 403 permission message) when present. */
 async function ensureOk(res: Response, fallback: string): Promise<void> {
@@ -36,6 +38,8 @@ interface Block {
   startAt: string
   endAt: string
   reason: string | null
+  userId?: string | null
+  user?: { id: string; name: string | null } | null
 }
 
 interface BookingSettings {
@@ -77,7 +81,7 @@ export default function AvailabilityPage() {
   const [rulesSaved, setRulesSaved] = useState(false)
 
   // New block form
-  const [newBlock, setNewBlock] = useState({ startAt: "", endAt: "", reason: "" })
+  const [newBlock, setNewBlock] = useState({ startAt: "", endAt: "", reason: "", userId: "" })
   const [blockSaving, setBlockSaving] = useState(false)
 
   // Booking settings
@@ -203,12 +207,13 @@ export default function AvailabilityPage() {
           startAt: new Date(newBlock.startAt).toISOString(),
           endAt: new Date(newBlock.endAt).toISOString(),
           reason: newBlock.reason || undefined,
+          userId: newBlock.userId || undefined,
         }),
       })
       await ensureOk(res, "שגיאה בהוספת חסימה")
       const data = await res.json()
       setBlocks((prev) => [...prev, data.block].sort((a, b) => a.startAt.localeCompare(b.startAt)))
-      setNewBlock({ startAt: "", endAt: "", reason: "" })
+      setNewBlock({ startAt: "", endAt: "", reason: "", userId: "" })
     } catch (err) {
       toast.error(errorMessage(err, "שגיאה בהוספת חסימה"))
     } finally {
@@ -643,6 +648,14 @@ export default function AvailabilityPage() {
               />
             </div>
           </div>
+          <div className="mt-3 sm:max-w-xs empty:hidden">
+            <BlockMemberSelect
+              value={newBlock.userId}
+              onChange={(userId) => setNewBlock((p) => ({ ...p, userId }))}
+              labelClassName="block text-xs font-medium text-gray-600 mb-1"
+              className="w-full border border-petra-border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
+            />
+          </div>
           <button
             onClick={addBlock}
             disabled={!newBlock.startAt || !newBlock.endAt || blockSaving}
@@ -670,6 +683,9 @@ export default function AvailabilityPage() {
                     {new Date(block.endAt).toLocaleString("he-IL", {
                       day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
                     })}
+                    {blockMemberName(block) && (
+                      <span className="text-gray-500 font-normal"> · {blockMemberName(block)}</span>
+                    )}
                   </p>
                   {block.reason && (
                     <p className="text-xs text-gray-500 mt-0.5">{block.reason}</p>

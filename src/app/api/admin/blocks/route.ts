@@ -4,6 +4,9 @@ import prisma from "@/lib/prisma"
 import { requireTenantPermission, isGuardError, requireBusinessAuth } from "@/lib/auth-guards"
 import { TENANT_PERMS } from "@/lib/permissions"
 import { z } from "zod"
+import { BLOCK_USER_INCLUDE } from "@/lib/availability-block-range"
+import { resolveMemberId } from "@/services/team-members"
+import { ServiceError } from "@/services/types"
 
 // GET /api/admin/blocks?from=YYYY-MM-DD&to=YYYY-MM-DD
 export async function GET(req: NextRequest) {
@@ -24,6 +27,7 @@ export async function GET(req: NextRequest) {
       ...(from ? { endAt: { gte: new Date(from) } } : {}),
       ...(to ? { startAt: { lte: new Date(to + "T23:59:59Z") } } : {}),
     },
+    include: BLOCK_USER_INCLUDE,
     orderBy: { startAt: "asc" },
   })
 
@@ -34,10 +38,12 @@ const BlockFormSchema = z.object({
   startAt: z.string({ required_error: "startAt is required" }).datetime(),
   endAt: z.string({ required_error: "endAt is required" }).datetime(),
   reason: z.string().optional(),
+  // null / omitted = whole business; a member id = that member's absence (א.40)
+  userId: z.string().nullable().optional(),
 })
 
 // POST /api/admin/blocks
-// Body: { startAt: ISO, endAt: ISO, reason?: string }
+// Body: { startAt: ISO, endAt: ISO, reason?: string, userId?: string | null }
 export async function POST(req: NextRequest) {
   const auth = await requireBusinessAuth(req)
   if (isGuardError(auth)) return auth
@@ -61,13 +67,23 @@ export async function POST(req: NextRequest) {
 
   const { startAt, endAt, reason } = validationResult.data
 
+  let userId: string | null
+  try {
+    userId = await resolveMemberId(businessId, validationResult.data.userId)
+  } catch (error) {
+    if (error instanceof ServiceError) return NextResponse.json({ error: error.message }, { status: 400 })
+    throw error
+  }
+
   const block = await prisma.availabilityBlock.create({
     data: {
       businessId,
       startAt: new Date(startAt),
       endAt: new Date(endAt),
       reason: reason ?? null,
+      userId,
     },
+    include: BLOCK_USER_INCLUDE,
   })
 
   return NextResponse.json({ block }, { status: 201 })
