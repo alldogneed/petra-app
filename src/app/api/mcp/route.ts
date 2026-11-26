@@ -33,6 +33,8 @@ import { cancelTrainingSessionReminder } from "@/lib/reminder-service";
 import { SALES_JOURNAL_KIND_LABELS, TASK_STATUS_LABELS, type SalesHistoryLead } from "@/lib/lead-sales-history";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
 import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
+import { listActiveMembers, matchMember, type TeamMemberRef } from "@/services/team-members";
+import { memberNotFoundMessage, parseAssignedToParam } from "@/lib/team-member-match";
 import { listOrders, getOrder } from "@/services/orders";
 import { registerOrderTools } from "@/lib/mcp/tools-orders";
 import { listPets } from "@/services/pets";
@@ -240,7 +242,8 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         const lines = appts.map((a) => {
           const dateStr = heDate(a.date, { weekday: "short", day: "numeric", month: "numeric" });
           const timeStr = a.startTime ?? "";
-          return `• ${dateStr} ${timeStr} — ${safeField((a as any).customer?.name) || "לא ידוע"} | ${safeField((a as any).service?.name)} [${a.status}] (id: ${a.id})`;
+          const staffLine = a.assignedTo?.name ? ` · עובד: ${safeField(a.assignedTo.name, 60)}` : "";
+          return `• ${dateStr} ${timeStr} — ${safeField((a as any).customer?.name) || "לא ידוע"} | ${safeField((a as any).service?.name)} [${a.status}]${staffLine} (id: ${a.id})`;
         });
         return textResult(`${appts.length} תורים קרובים:\n${lines.join("\n")}`);
       } catch (e) {
@@ -342,10 +345,21 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   const findPriceListItem = (id: string) =>
     prisma.priceListItem.findFirst({ where: { id, priceList: { businessId } }, select: { id: true, name: true, durationMinutes: true } });
 
+  // assigned_to (team member id or name) → member, null (clear / none) or undefined (not passed).
+  // Business members only (businessId from the token); no match / ambiguous → Hebrew error listing the names.
+  const resolveAssignee = async (raw: string | null | undefined): Promise<TeamMemberRef | null | undefined> => {
+    const q = parseAssignedToParam(raw);
+    if (q === undefined || q === null) return q;
+    const members = await listActiveMembers(businessId);
+    const m = matchMember(members, q);
+    if (!m) throw new ServiceError(memberNotFoundMessage(safeField(q, 60), members.map((x) => safeField(x.name, 60))), "VALIDATION");
+    return m;
+  };
+
   // ── create_appointment ────────────────────────────────────────────────────
   server.tool(
     "create_appointment",
-    "Create a new appointment. Requires customer ID and a service_id (list_services) or a price_list_item_id. Optional pet_id (a dog of THIS customer — see get_client) and training_program_id (books the appointment as the next meeting of that client's active training package, like the calendar's \"לשייך לחבילת אילוף\"; refused if the package is full / belongs to another client or dog — then nothing is created). Checks the calendar for conflicts (overlapping appointments / calendar blocks) and refuses unless force=true; warns (but does not refuse) when the slot is outside business opening hours. Syncs to Google Calendar when connected, like the UI.",
+    "Create a new appointment. Requires customer ID and a service_id (list_services) or a price_list_item_id. Optional pet_id (a dog of THIS customer — see get_client) and training_program_id (books the appointment as the next meeting of that client's active training package, like the calendar's \"לשייך לחבילת אילוף\"; refused if the package is full / belongs to another client or dog — then nothing is created). Checks the calendar for conflicts (overlapping appointments / calendar blocks) and refuses unless force=true; warns (but does not refuse) when the slot is outside business opening hours. Syncs to Google Calendar when connected, like the UI. Optional assigned_to = the team member handling the appointment (id or name; an unknown / ambiguous name is refused with the list of active members).",
     {
       customer_id: z.string().describe("Customer ID (from list_clients)"),
       service_id: z.string().optional().describe("Service ID (from list_services). Required unless price_list_item_id is given"),
@@ -356,13 +370,14 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
       start_time: z.string().describe("Start time in HH:MM format"),
       duration: z.number().int().min(5).max(480).optional().describe("Duration in minutes (default: the price-list item's duration, else 60)"),
       notes: z.string().max(2000).optional().describe("Optional notes"),
+      assigned_to: z.string().max(200).nullable().optional().describe("Team member handling the appointment — member id or name (full name, or a unique first name). Omit / empty = no assignment"),
       force: z.boolean().optional().describe("Override conflict check — create even if the slot overlaps an existing appointment or calendar block"),
       idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of creating a duplicate"),
       dry_run: z.boolean().optional().describe("If true, only preview what would be created (includes the conflict-check result)"),
     },
-    async ({ customer_id, service_id, price_list_item_id, pet_id, training_program_id, date, start_time, duration, notes, force, idempotency_key, dry_run }) => {
+    async ({ customer_id, service_id, price_list_item_id, pet_id, training_program_id, date, start_time, duration, notes, assigned_to, force, idempotency_key, dry_run }) => {
       if (!hasScope("write:appointments")) return denyScope("create_appointment", "write:appointments");
-      const params = { customer_id, service_id, price_list_item_id, pet_id, training_program_id, date, start_time, duration, notes, force, idempotency_key, dry_run };
+      const params = { customer_id, service_id, price_list_item_id, pet_id, training_program_id, date, start_time, duration, notes, assigned_to, force, idempotency_key, dry_run };
       try {
         const replay = await findIdempotentReplay(connectionId, "create_appointment", idempotency_key);
         if (replay) return replayResult(replay);
@@ -381,6 +396,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         if (price_list_item_id && !pli) throw new ServiceError("פריט מחירון לא נמצא", "NOT_FOUND");
         const pet = pet_id ? await checkPetForCustomer(pet_id, customer_id) : null;
         const program = training_program_id ? await checkProgramForCustomer(training_program_id, customer_id, pet_id ?? null) : null;
+        const assignee = await resolveAssignee(assigned_to);
 
         // Compute endTime from startTime + duration
         const durationMins = duration ?? (pli?.durationMinutes && pli.durationMinutes > 0 ? pli.durationMinutes : 60);
@@ -398,7 +414,8 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
             : "\n✔ אין התנגשות ביומן";
           const petLine = pet ? ` | כלב: ${safeField(pet.name, 40)}` : program?.dog?.name ? ` | כלב: ${safeField(program.dog.name, 40)}` : "";
           const programLine = program ? `\n🎓 יצורף כמפגש הבא בתוכנית "${safeField(program.name, 60)}" (id: ${program.id})` : "";
-          return dryRunResult(`ייקבע תור ל-${safeField(cust.name)} | ${what} | ${heDate(`${date}T00:00:00.000Z`)} בשעה ${start_time}-${endTime} | ${durationMins} דק'${petLine}${notes ? ` | הערות: ${safeField(notes, 200)}` : ""}${programLine}${conflictPreview}${outsideHoursLine(conflicts)}`);
+          const staffPreview = assignee ? ` | עובד: ${safeField(assignee.name, 60)}` : "";
+          return dryRunResult(`ייקבע תור ל-${safeField(cust.name)} | ${what} | ${heDate(`${date}T00:00:00.000Z`)} בשעה ${start_time}-${endTime} | ${durationMins} דק'${petLine}${staffPreview}${notes ? ` | הערות: ${safeField(notes, 200)}` : ""}${programLine}${conflictPreview}${outsideHoursLine(conflicts)}`);
         }
         if (hasHardConflict(conflicts) && !force) throw conflictRefusal(conflicts);
 
@@ -415,6 +432,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           startTime: start_time,
           endTime,
           notes: notes ?? null,
+          assignedToUserId: assignee?.id ?? null,
         }, { maxAppointments: maxAppts });
 
         // Training package meeting (rule #45) — same as POST /api/appointments: attach before any
@@ -458,7 +476,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         const gcalSynced = gcalOk && (await findConnectedUsersForBusiness(businessId)).some((u) => u.gcalSyncEnabled);
 
         const apptWhat = [appt.service?.name, appt.priceListItem?.name].filter(Boolean).map((n) => safeField(n, 80)).join(" / ");
-        const apptSummary = `✅ נקבע תור בהצלחה!\nלקוח: ${safeField(appt.customer?.name ?? "")}\nשירות: ${apptWhat}${appt.pet ? `\nכלב: ${safeField(appt.pet.name, 40)}` : ""}\nתאריך: ${heDate(appt.date)} בשעה ${appt.startTime}-${appt.endTime} (id: ${appt.id})${trainingSession ? `\n🎓 נרשם כמפגש ${trainingSession.sessionNumber} בתוכנית "${safeField(program?.name ?? "", 60)}"` : ""}${hasHardConflict(conflicts) ? `\n⚠️ נקבע למרות התנגשות (force=true):\n${describeConflicts(conflicts)}` : ""}${outsideHoursLine(conflicts)}${gcalSynced ? "\n📅 סונכרן ליומן Google" : ""}`;
+        const apptSummary = `✅ נקבע תור בהצלחה!\nלקוח: ${safeField(appt.customer?.name ?? "")}\nשירות: ${apptWhat}${appt.pet ? `\nכלב: ${safeField(appt.pet.name, 40)}` : ""}${appt.assignedTo?.name ? `\nעובד: ${safeField(appt.assignedTo.name, 60)}` : ""}\nתאריך: ${heDate(appt.date)} בשעה ${appt.startTime}-${appt.endTime} (id: ${appt.id})${trainingSession ? `\n🎓 נרשם כמפגש ${trainingSession.sessionNumber} בתוכנית "${safeField(program?.name ?? "", 60)}"` : ""}${hasHardConflict(conflicts) ? `\n⚠️ נקבע למרות התנגשות (force=true):\n${describeConflicts(conflicts)}` : ""}${outsideHoursLine(conflicts)}${gcalSynced ? "\n📅 סונכרן ליומן Google" : ""}`;
         await auditLog(connectionId, "create_appointment", params, "success", `created appointment ${appt.id}`);
         return textResult(apptSummary);
       } catch (e) {
@@ -1057,7 +1075,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   // ── update_appointment ────────────────────────────────────────────────────
   server.tool(
     "update_appointment",
-    "Update an existing appointment — change date, time, status, notes, the dog (pet_id — must be this appointment's customer's dog), the service (service_id / price_list_item_id), or attach it to a training package (training_program_id → becomes the program's next meeting; refused if the appointment is already linked to a meeting). Use list_upcoming_appointments to find appointment IDs. When date/time change, the new slot is conflict-checked (overlapping appointments / calendar blocks, excluding this appointment) and refused unless force=true; outside-opening-hours only warns. Keeps WhatsApp reminders and Google Calendar in sync like the UI.",
+    "Update an existing appointment — change date, time, status, notes, the dog (pet_id — must be this appointment's customer's dog), the service (service_id / price_list_item_id), or attach it to a training package (training_program_id → becomes the program's next meeting; refused if the appointment is already linked to a meeting), or the team member handling it (assigned_to — member id or name; an empty string or null removes the assignment; an unknown / ambiguous name is refused with the list of active members). Use list_upcoming_appointments to find appointment IDs. When date/time change, the new slot is conflict-checked (overlapping appointments / calendar blocks, excluding this appointment) and refused unless force=true; outside-opening-hours only warns. Keeps WhatsApp reminders and Google Calendar in sync like the UI.",
     {
       appointment_id: z.string().describe("Appointment ID"),
       date: z.string().optional().describe("New date in YYYY-MM-DD format"),
@@ -1069,13 +1087,14 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
       service_id: z.string().optional().describe("New service ID (from list_services)"),
       price_list_item_id: z.string().optional().describe("New price-list item ID"),
       training_program_id: z.string().optional().describe("Attach this appointment as the next meeting of the customer's active training program"),
+      assigned_to: z.string().max(200).nullable().optional().describe("Team member handling the appointment — member id or name (full name, or a unique first name); \"\" or null removes the assignment"),
       force: z.boolean().optional().describe("Override conflict check — apply the new date/time even if it overlaps an existing appointment or calendar block"),
       idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of applying the update twice"),
       dry_run: z.boolean().optional().describe("If true, only preview the change (includes the conflict-check result)"),
     },
-    async ({ appointment_id, date, start_time, end_time, status, notes, pet_id, service_id, price_list_item_id, training_program_id, force, idempotency_key, dry_run }) => {
+    async ({ appointment_id, date, start_time, end_time, status, notes, pet_id, service_id, price_list_item_id, training_program_id, assigned_to, force, idempotency_key, dry_run }) => {
       if (!hasScope("write:appointments")) return denyScope("update_appointment", "write:appointments");
-      const params = { appointment_id, date, start_time, end_time, status, notes, pet_id, service_id, price_list_item_id, training_program_id, force, idempotency_key, dry_run };
+      const params = { appointment_id, date, start_time, end_time, status, notes, pet_id, service_id, price_list_item_id, training_program_id, assigned_to, force, idempotency_key, dry_run };
       try {
         const replay = await findIdempotentReplay(connectionId, "update_appointment", idempotency_key);
         if (replay) return replayResult(replay);
@@ -1083,7 +1102,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         const hhmm = /^([01]\d|2[0-3]):[0-5]\d$/;
         if (start_time !== undefined && !hhmm.test(start_time)) throw new ServiceError("שעת התחלה לא תקינה — נדרש פורמט HH:MM", "VALIDATION");
         if (end_time !== undefined && !hhmm.test(end_time)) throw new ServiceError("שעת סיום לא תקינה — נדרש פורמט HH:MM", "VALIDATION");
-        if ([date, start_time, end_time, status, notes, pet_id, service_id, price_list_item_id, training_program_id].every((v) => v === undefined)) {
+        if ([date, start_time, end_time, status, notes, pet_id, service_id, price_list_item_id, training_program_id, assigned_to].every((v) => v === undefined)) {
           throw new ServiceError("לא צוין שום שדה לעדכון", "VALIDATION");
         }
 
@@ -1093,9 +1112,11 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
             id: true, date: true, startTime: true, endTime: true, status: true, customerId: true, petId: true,
             customer: { select: { name: true } }, service: { select: { name: true } }, priceListItem: { select: { name: true } },
             pet: { select: { name: true } }, trainingSession: { select: { id: true } },
+            assignedTo: { select: { name: true } },
           },
         });
         if (!existing) throw new ServiceError("תור לא נמצא", "NOT_FOUND");
+        const assignee = await resolveAssignee(assigned_to);
 
         // Ownership checks for the new references (businessId from the token only).
         const [newSvc, newPli] = await Promise.all([
@@ -1130,6 +1151,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           if (newPet) changes.push(`כלב: ${existing.pet?.name ? safeField(existing.pet.name, 40) : "—"} → ${safeField(newPet.name, 40)}`);
           if (newSvc) changes.push(`שירות: ${existing.service?.name ? safeField(existing.service.name, 80) : "—"} → ${safeField(newSvc.name, 80)}`);
           if (newPli) changes.push(`פריט מחירון: ${existing.priceListItem?.name ? safeField(existing.priceListItem.name, 80) : "—"} → ${safeField(newPli.name, 80)}`);
+          if (assignee !== undefined) changes.push(`עובד: ${existing.assignedTo?.name ? safeField(existing.assignedTo.name, 60) : "ללא שיוך"} → ${assignee ? safeField(assignee.name, 60) : "ללא שיוך"}`);
           if (program) changes.push(`🎓 יצורף כמפגש הבא בתוכנית "${safeField(program.name, 60)}" (id: ${program.id})`);
           const conflictPreview = conflicts
             ? hasHardConflict(conflicts)
@@ -1149,6 +1171,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           serviceId: service_id ?? undefined,
           priceListItemId: price_list_item_id ?? undefined,
           petId: pet_id ?? undefined,
+          assignedToUserId: assignee === undefined ? undefined : assignee?.id ?? null,
         });
         // Training package (rule #45): attach after the update (status/time already final).
         let trainingSession: { id: string; sessionNumber: number } | null = null;
@@ -1214,6 +1237,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           pet_id && appt.pet ? `\nכלב: ${safeField(appt.pet.name, 40)}` : "",
           service_id && appt.service ? `\nשירות: ${safeField(appt.service.name, 80)}` : "",
           price_list_item_id && appt.priceListItem ? `\nפריט מחירון: ${safeField(appt.priceListItem.name, 80)}` : "",
+          assignee !== undefined ? `\nעובד: ${appt.assignedTo?.name ? safeField(appt.assignedTo.name, 60) : "ללא שיוך"}` : "",
           trainingSession ? `\n🎓 שויך כמפגש ${trainingSession.sessionNumber} בתוכנית "${safeField(program?.name ?? "", 60)}"` : "",
           attachError ? `\n⚠️ שאר השינויים נשמרו, אבל השיוך לתוכנית האילוף נכשל: ${safeField(attachError, 200)}` : "",
         ].join("");

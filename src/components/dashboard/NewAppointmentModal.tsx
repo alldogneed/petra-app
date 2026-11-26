@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Calendar, CalendarClock, X } from "lucide-react";
 import { toast } from "sonner";
 import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
+import { AssignedMemberSelect } from "@/components/appointments/AssignedMemberSelect";
 
 
 
@@ -27,6 +28,7 @@ export function NewAppointmentModal({
     startTime: "09:00",
     endTime: "10:00",
     notes: "",
+    assignedToUserId: "",
   });
 
   const [pickedCustomer, setPickedCustomer] = useState<PickerCustomer | null>(null);
@@ -79,10 +81,11 @@ export function NewAppointmentModal({
           customerId: form.customerId,
           petId: form.petId || null,
           notes: form.notes || null,
+          assignedToUserId: form.assignedToUserId || null,
         }),
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירת פגישה"); return d; }),
     onSuccess: () => {
-      setForm({ customerId: "", petId: "", serviceId: "", date: today, startTime: "09:00", endTime: "10:00", notes: "" });
+      setForm({ customerId: "", petId: "", serviceId: "", date: today, startTime: "09:00", endTime: "10:00", notes: "", assignedToUserId: "" });
       setPickedCustomer(null);
       toast.success("הפגישה נוצרה בהצלחה!");
       onCreated();
@@ -190,6 +193,12 @@ export function NewAppointmentModal({
               />
             </div>
           </div>
+
+          <AssignedMemberSelect
+            value={form.assignedToUserId}
+            onChange={(id) => setField("assignedToUserId", id)}
+            enabled={isOpen}
+          />
 
           {/* Notes */}
           <div>

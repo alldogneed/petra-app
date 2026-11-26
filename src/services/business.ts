@@ -383,6 +383,7 @@ export async function getDashboardMetrics(
         pet: { select: { name: true, species: true } },
         service: { select: { id: true, name: true, color: true, type: true } },
         priceListItem: { select: { id: true, name: true, category: true } },
+        assignedTo: { select: { id: true, name: true } },
       },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
       take: 8,

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { fetchJSON } from "@/lib/utils";
 import type { CustomerDetail } from "./types";
+import { AssignedMemberSelect } from "@/components/appointments/AssignedMemberSelect";
 
 export interface ServiceBasic {
   id: string;
@@ -32,6 +33,7 @@ export function NewAppointmentModal({
     startTime: "09:00",
     endTime: "10:00",
     notes: "",
+    assignedToUserId: "",
   });
   const [fieldError, setFieldError] = useState("");
 
@@ -53,6 +55,7 @@ export function NewAppointmentModal({
           startTime: data.startTime,
           endTime: data.endTime,
           notes: data.notes || null,
+          assignedToUserId: data.assignedToUserId || null,
         }),
       }),
     onSuccess: () => {
@@ -174,6 +177,10 @@ export function NewAppointmentModal({
               />
             </div>
           </div>
+          <AssignedMemberSelect
+            value={form.assignedToUserId}
+            onChange={(id) => setForm((f) => ({ ...f, assignedToUserId: id }))}
+          />
           <div>
             <label className="label">הערות</label>
             <textarea

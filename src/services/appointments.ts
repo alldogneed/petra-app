@@ -12,6 +12,7 @@ import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
 import { appointmentOrderTimes } from "@/lib/order-time";
 import { syncSessionFromAppointment, releaseSessionOfDeletedAppointment } from "./training-appointments";
+import { resolveMemberId } from "./team-members";
 
 export type DbClient = PrismaClient;
 export { ServiceError };
@@ -34,6 +35,8 @@ export interface CreateAppointmentInput {
   customerId: string;
   petId?: string | null;
   notes?: string | null;
+  /** Team member (PlatformUser id, active member of this business) handling the appointment; null/"" = none. */
+  assignedToUserId?: string | null;
 }
 
 export interface UpdateAppointmentInput {
@@ -47,6 +50,8 @@ export interface UpdateAppointmentInput {
   priceListItemId?: string;
   /** Dog of the appointment. Must belong to this business AND to the appointment's customer; null clears it. */
   petId?: string | null;
+  /** Team member handling the appointment; null clears it, undefined leaves it unchanged. */
+  assignedToUserId?: string | null;
 }
 
 export interface RecurringAppointmentInput {
@@ -59,6 +64,8 @@ export interface RecurringAppointmentInput {
   petId?: string | null;
   notes?: string | null;
   repeatEvery: "week" | "2weeks" | "month";
+  /** Same team member on every occurrence; null/"" = none. */
+  assignedToUserId?: string | null;
   occurrences: number;
 }
 
@@ -73,6 +80,8 @@ const APPOINTMENT_SELECT = {
   customer: { select: { id: true, name: true, phone: true, email: true } },
   pet: { select: { id: true, name: true, species: true, breed: true } },
   staff: { select: { id: true, name: true } },
+  assignedToUserId: true,
+  assignedTo: { select: { id: true, name: true } },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -194,6 +203,8 @@ export async function createAppointment(
     if (!pli) throw new ServiceError("פריט מחירון לא נמצא", "NOT_FOUND");
   }
 
+  const assignedToUserId = await resolveMemberId(businessId, cleanMemberInput(input.assignedToUserId));
+
   return db.appointment.create({
     data: {
       date: new Date(date),
@@ -204,6 +215,7 @@ export async function createAppointment(
       customerId,
       petId: petId || null,
       notes: notes || null,
+      assignedToUserId,
       status: "scheduled",
       businessId,
     },
@@ -227,6 +239,9 @@ export async function updateAppointment(businessId: string, db: DbClient, id: st
   if (input.date !== undefined) data.date = new Date(input.date);
   if (input.startTime !== undefined) data.startTime = input.startTime;
   if (input.endTime !== undefined) data.endTime = input.endTime;
+  if (input.assignedToUserId !== undefined) {
+    data.assignedToUserId = await resolveMemberId(businessId, cleanMemberInput(input.assignedToUserId));
+  }
 
   // IDOR: validate serviceId / priceListItemId belong to this business
   if (input.serviceId !== undefined) {
@@ -274,6 +289,7 @@ export async function updateAppointment(businessId: string, db: DbClient, id: st
       priceListItem: { select: { id: true, name: true, category: true, durationMinutes: true, basePrice: true } },
       customer: { select: { id: true, name: true, phone: true } },
       pet: { select: { id: true, name: true, species: true, breed: true } },
+      assignedTo: { select: { id: true, name: true } },
     },
   });
 
@@ -372,6 +388,8 @@ export async function createRecurringAppointments(businessId: string, db: DbClie
     if (!pli) throw new ServiceError("פריט מחירון לא נמצא", "NOT_FOUND");
   }
 
+  const assignedToUserId = await resolveMemberId(businessId, cleanMemberInput(input.assignedToUserId));
+
   const count = Math.min(Math.max(Number(occurrences) || 1, 1), 52);
   const intervalDays = repeatEvery === "2weeks" ? 14 : repeatEvery === "month" ? 28 : 7;
 
@@ -388,6 +406,7 @@ export async function createRecurringAppointments(businessId: string, db: DbClie
       customerId,
       petId: petId || null,
       notes: notes || null,
+      assignedToUserId,
       status: "scheduled",
       businessId,
     };
@@ -408,4 +427,12 @@ async function syncOrderTimesFromAppointment(
     where: { businessId, relatedEntityType: "Appointment", relatedEntityId: appt.id, status: { not: "cancelled" } },
     data: { startAt, ...(endAt ? { endAt } : {}) },
   });
+}
+
+/** Raw body value → string | null | undefined (non-strings rejected, length-capped). */
+function cleanMemberInput(v: unknown): string | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null || v === "") return null;
+  if (typeof v !== "string" || v.length > 64) throw new ServiceError("איש הצוות לא נמצא בעסק זה", "VALIDATION");
+  return v.trim() || null;
 }
