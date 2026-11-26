@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { canCancelOrder, CANCEL_PAID_ORDER_ERROR } from "@/lib/order-cancel";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
-import { TENANT_PERMS, hasTenantPermission, type TenantRole } from "@/lib/permissions";
+import { TENANT_PERMS, hasTenantPermission, sessionHasTenantPermission, type TenantRole } from "@/lib/permissions";
 import { sendPaymentRequestForOrder } from "@/lib/payment-request";
 import { getOrder, updateOrder, deleteOrder, ServiceError } from "@/services/orders";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
@@ -102,6 +102,15 @@ export async function PATCH(
       claimedDraftToConfirmed = claim.count === 1;
     }
 
+    // Items / discount on a CONFIRMED order (not only a draft) — allowed when nothing was paid,
+    // nothing is pending and no invoice exists; updateOrder claims that atomically. Changing the
+    // price is a money action → PAYMENTS_WRITE (overrides honoured). נדב 26/11/2026.
+    let allowUnpaidLineEdit = false;
+    if (body.lines !== undefined) {
+      const { session, businessId } = authResult;
+      allowUnpaidLineEdit = sessionHasTenantPermission(session, businessId, TENANT_PERMS.PAYMENTS_WRITE);
+    }
+
     let order;
     try {
       order = await updateOrder(authResult.businessId, prisma, params.id, {
@@ -112,7 +121,7 @@ export async function PATCH(
         lines: body.lines,
         discountType: body.discountType,
         discountValue: body.discountValue,
-      });
+      }, { allowUnpaidLineEdit });
     } catch (e) {
       if (e instanceof ServiceError) {
         return NextResponse.json({ error: e.message }, { status: e.code === "NOT_FOUND" ? 404 : 400 });
