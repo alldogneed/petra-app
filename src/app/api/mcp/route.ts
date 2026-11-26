@@ -25,6 +25,7 @@ import { runAfterResponse } from "@/lib/wait-until";
 import { syncLeadToGoogleContacts } from "@/lib/google-contacts";
 import { formatPetNotesBlock } from "@/lib/lead-pet-notes";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, updateCustomer, mergeClientTags, createLead, updateLead, listTasks, getCustomerSalesHistory, type UpdateCustomerInput } from "@/services/clients";
+import { getCustomerStatus } from "@/services/customer-list";
 import { parseTagList } from "@/lib/customer-filters";
 import { listCustomerStays, TENTATIVE_STAY_LABEL } from "@/services/customer-boarding";
 import { attachAppointmentToProgram } from "@/services/training-appointments";
@@ -616,7 +617,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   // ── update_client ─────────────────────────────────────────────────────────
   server.tool(
     "update_client",
-    "Update an existing client's details: name, phone, email, address, internal notes (replaces the notes field — use add_client_note for a timeline note), tags (replace the whole list, or add_tags / remove_tags). Pass an empty string to clear email / address / notes. Same validation as the client card: Israeli phone format, and a phone that already belongs to another client is refused. Only the fields you pass change. Use list_clients to find the client ID.",
+    "Update an existing client's details: name, phone, email, address, internal notes (replaces the notes field — use add_client_note for a timeline note), tags (replace the whole list, or add_tags / remove_tags). Pass an empty string to clear email / address / notes. Same validation as the client card: Israeli phone format, and a phone that already belongs to another client is refused. Only the fields you pass change. The status (פעיל / לא פעיל) is not a field: it is computed automatically (a reserved or active boarding stay, an upcoming appointment, a visit in the last 60 days, an active training program or a client created in the last 7 days = active; a VIP tag = VIP) and shown by get_client / list_clients. Use list_clients to find the client ID.",
     {
       client_id: z.string().describe("Customer ID (from list_clients)"),
       name: z.string().min(2).max(200).optional().describe("New full name"),
@@ -1296,6 +1297,16 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         const contact = [c.phone && `טלפון: ${safeField(c.phone, 20)}`, c.email && `אימייל: ${safeField(c.email, 60)}`, c.address && `כתובת: ${safeField(c.address, 80)}`].filter(Boolean).join(" | ");
         if (contact) sections.push(contact);
         if (c.notes) sections.push(`הערות: ${safeField(c.notes, 300)}`);
+        // Computed status, same rule as the customers list (never stored — א.42, 25/11/2026).
+        try {
+          const st = await getCustomerStatus(businessId, c.id, prisma);
+          if (st) {
+            const label = st.status === "vip" ? "VIP" : st.status === "active" ? "פעיל" : "לא פעיל";
+            sections.push(`סטטוס: ${label}${st.reasons.length ? ` (${st.reasons.join(", ")})` : ""} — מחושב אוטומטית`);
+          }
+        } catch {
+          // status line is optional — never fails get_client
+        }
 
         // Summary — money only with read:payments AND the minter's FINANCE_READ
         // (same balance definition as the customer card).

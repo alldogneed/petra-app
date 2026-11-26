@@ -8,6 +8,7 @@ import {
   Send, MessageCircle, Building2, GraduationCap, Package, Scissors, Users,
   CreditCard, CheckCircle2, RefreshCw,
 } from "lucide-react";
+import { pickBoardingPriceItem } from "@/lib/boarding-price-item";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
@@ -238,6 +239,8 @@ export function CreateOrderModal({
   const [boardingCheckOutTime, setBoardingCheckOutTime] = useState("12:00");
   // Create the BoardingStay(s) together with the order (linked both ways) — default ON
   const [createBoardingStays, setCreateBoardingStays] = useState(true);
+  // Link the order to a stay the customer already has instead of creating one (גבעת הכלבים 25/11, א.43).
+  const [linkStayId, setLinkStayId] = useState("");
   const [boardingRoomId, setBoardingRoomId] = useState("");
 
   // WhatsApp link toggle
@@ -341,6 +344,43 @@ export function CreateOrderModal({
     staleTime: 60_000,
   });
 
+  // The customer's open stays (reserved / checked in) — "קשר לשהייה קיימת".
+  const { data: customerStays = [] } = useQuery<{ id: string; checkIn: string; checkOut: string | null; status: string; pet: { id: string; name: string }; room: { id: string; name: string } | null }[]>({
+    queryKey: ["customer", customerId, "boarding", "open-stays"],
+    queryFn: async () => {
+      const r = await fetch(`/api/customers/${encodeURIComponent(customerId)}/boarding?limit=30`);
+      if (!r.ok) return [];
+      const d = await r.json();
+      return (d.stays ?? []).filter((st: { status: string }) => st.status === "reserved" || st.status === "checked_in");
+    },
+    enabled: isOpen && orderType === "boarding" && !!customerId,
+    staleTime: 30_000,
+  });
+
+  const israelParts = (iso: string) => {
+    const d = new Date(iso);
+    const date = d.toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+    const time = d.toLocaleTimeString("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", hour12: false });
+    return { date, time };
+  };
+  const shortDate = (iso: string) => new Date(iso).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric" });
+
+  const chooseExistingStay = (stayId: string) => {
+    setLinkStayId(stayId);
+    const st = customerStays.find((x) => x.id === stayId);
+    if (!st) return;
+    setCreateBoardingStays(false);
+    setBoardingPetIds([st.pet.id]);
+    const a = israelParts(st.checkIn);
+    setBoardingCheckInDate(a.date);
+    setBoardingCheckInTime(a.time);
+    if (st.checkOut) {
+      const b = israelParts(st.checkOut);
+      setBoardingCheckOutDate(b.date);
+      setBoardingCheckOutTime(b.time);
+    }
+  };
+
   /** Best-effort cancel of stays created in a submit that did not complete. */
   const cancelStays = async (ids: string[]) => {
     await Promise.all(
@@ -412,28 +452,45 @@ export function CreateOrderModal({
     return boardingNights * petCount;
   }, [boardingNights, boardingPetIds.length]);
 
+  // The boarding price-list item picked automatically (by dog count — pickBoardingPriceItem).
+  const [boardingAutoItemId, setBoardingAutoItemId] = useState<string | null>(null);
+
   // Auto-update qty of boarding lines when dates or pet count change
   useEffect(() => {
     if (!isBoardingOrder || boardingUnits === null) return;
     setLines((ls) =>
       ls.map((l) =>
-        l.unit === "per_night" || l.unit === "per_day"
+        l.unit === "per_night" || l.unit === "per_day" || (boardingAutoItemId && l.priceListItemId === boardingAutoItemId)
           ? { ...l, quantity: boardingUnits }
           : l
       )
     );
-  }, [isBoardingOrder, boardingUnits]);
+  }, [isBoardingOrder, boardingUnits, boardingAutoItemId]);
+
+  // Dog count changed → switch the auto-picked tariff ("פנסיון 1 כלב" ↔ "פנסיון 2 כלבים"),
+  // only while the line still carries the auto item at its list price (a manual edit wins).
+  useEffect(() => {
+    if (!isBoardingOrder || !boardingAutoItemId) return;
+    const next = pickBoardingPriceItem(allItems, boardingPetIds.length);
+    if (!next || next.id === boardingAutoItemId) return;
+    const current = allItems.find((i) => i.id === boardingAutoItemId);
+    setLines((ls) => ls.map((l) =>
+      l.priceListItemId === boardingAutoItemId && current && l.unitPrice === current.basePrice
+        ? { ...l, priceListItemId: next.id, name: next.name, unit: next.unit, unitPrice: next.basePrice, taxMode: next.taxMode as "inherit" | "taxable" | "exempt" }
+        : l
+    ));
+    setBoardingAutoItemId(next.id);
+  }, [isBoardingOrder, boardingPetIds.length, allItems, boardingAutoItemId]);
 
   // Build startAt
 
   // When advancing from customer step to items step in boarding mode — auto-add the primary boarding item
   const handleAdvanceToItems = useCallback(() => {
     if (isBoardingOrder && boardingUnits !== null && lines.length === 0) {
-      const boardingItem = allItems.find(
-        (i) => (i.unit === "per_night" || i.unit === "per_day") &&
-                (i.category?.toLowerCase().includes("פנסיון") ?? true)
-      );
+      // By dog count first ("פנסיון 2 כלבים"), never day care — גבעת הכלבים 25/11/2026.
+      const boardingItem = pickBoardingPriceItem(allItems, boardingPetIds.length);
       if (boardingItem) {
+        setBoardingAutoItemId(boardingItem.id);
         setLines([{
           priceListItemId: boardingItem.id,
           name: boardingItem.name,
@@ -564,7 +621,7 @@ export function CreateOrderModal({
           throw stayErr;
         }
       }
-      const linkedStayId = createdStayIds[0] ?? null;
+      const linkedStayId = createdStayIds[0] ?? (isBoardingOrder && linkStayId ? linkStayId : null);
 
       // 1. Create the order (+ linked Appointment for service types, via API transaction)
       const res = await fetch("/api/orders", {
@@ -701,6 +758,8 @@ export function CreateOrderModal({
     setBoardingPetIds([]);
     setCreateBoardingStays(true);
     setBoardingRoomId("");
+    setBoardingAutoItemId(null);
+    setLinkStayId("");
     setSelectedPetId("");
     setApptDate(todayStr());
     setApptStartTime("09:00");
@@ -910,7 +969,7 @@ export function CreateOrderModal({
                 type="checkbox"
                 className="w-4 h-4 accent-brand-500"
                 checked={createBoardingStays}
-                onChange={(e) => setCreateBoardingStays(e.target.checked)}
+                onChange={(e) => { setCreateBoardingStays(e.target.checked); if (e.target.checked) setLinkStayId(""); }}
               />
               צור גם שהייה בפנסיון
             </label>
@@ -1060,6 +1119,31 @@ export function CreateOrderModal({
                 <p className="text-[11px] text-brand-500 mt-1.5 flex items-center gap-1">
                   ✓ {boardingPetIds.length === 1 ? "הכלב" : `${boardingPetIds.length} הכלבים`} יופיע{boardingPetIds.length > 1 ? "ו" : ""} בלוח הפנסיון{boardingRoomId ? "" : " תחת \"ממתין לשיבוץ\""}
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* Boarding: link to a stay the customer already has */}
+          {isBoardingOrder && customerStays.length > 0 && (
+            <div className="rounded-xl border border-slate-200 px-3 py-2 space-y-1.5">
+              <label className="label text-xs mb-0">קשר לשהייה קיימת</label>
+              <select
+                className="input text-sm"
+                value={linkStayId}
+                onChange={(e) => {
+                  if (e.target.value) chooseExistingStay(e.target.value);
+                  else { setLinkStayId(""); setCreateBoardingStays(true); }
+                }}
+              >
+                <option value="">לא — שהייה חדשה או בלי שהייה</option>
+                {customerStays.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.pet.name} · {shortDate(st.checkIn)}{st.checkOut ? `–${shortDate(st.checkOut)}` : ""}{st.room ? ` · ${st.room.name}` : ""}{st.status === "checked_in" ? " · בפנסיון" : ""}
+                  </option>
+                ))}
+              </select>
+              {linkStayId && (
+                <p className="text-[11px] text-petra-muted">ההזמנה תקושר לשהייה הזו. התאריכים והכלב נלקחו ממנה, ושהייה חדשה לא תיווצר.</p>
               )}
             </div>
           )}
