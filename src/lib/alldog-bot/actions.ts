@@ -105,7 +105,7 @@ const URGENT_TITLE_PREFIX = "דחוף: ";
  */
 export async function closingWhenNow(businessId: string, now: Date = new Date()): Promise<ClosingWhen> {
   const blocks = await prisma.availabilityBlock
-    .findMany({ where: { businessId, startAt: { lte: now }, endAt: { gt: now } }, select: { startAt: true, endAt: true, reason: true }, take: 5 })
+    .findMany({ where: { businessId, userId: null, startAt: { lte: now }, endAt: { gt: now } }, select: { startAt: true, endAt: true, reason: true }, take: 5 })
     .catch(() => []);
   if (closingWhen(now, blocks) === "after_holiday") return "after_holiday";
   return nextCallbackPhrase(now);

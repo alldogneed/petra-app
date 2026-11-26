@@ -26,6 +26,7 @@ export const CUSTOMER_APPOINTMENT_SELECT = {
   service: { select: { id: true, name: true, color: true } },
   priceListItem: { select: { id: true, name: true } },
   pet: { select: { id: true, name: true, species: true } },
+  assignedTo: { select: { id: true, name: true } },
 } satisfies Prisma.AppointmentSelect;
 
 export const CUSTOMER_PAYMENT_SELECT = {

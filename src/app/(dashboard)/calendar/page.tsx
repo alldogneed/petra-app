@@ -27,6 +27,8 @@ import {
   Sparkles,
   ExternalLink,
   Copy,
+  Users,
+  Ban,
 } from "lucide-react";
 import {
   cn,
@@ -36,6 +38,7 @@ import {
   toWhatsAppPhone,
 } from "@/lib/utils";
 import { toast } from "sonner";
+import { blockSegmentForDay, blockLabel, type CalendarBlock } from "@/lib/calendar-blocks";
 import { usePlan } from "@/hooks/usePlan";
 import { getMaxAppointments } from "@/lib/feature-flags";
 import { TierGate } from "@/components/paywall/TierGate";
@@ -73,6 +76,8 @@ interface AppointmentEvent {
   customer: { id: string; name: string; phone: string };
   pet: { id: string; name: string; species: string } | null;
   staff: { id: string; name: string } | null;
+  /** Team member assigned to the appointment (PlatformUser) — א.41. */
+  assignedTo?: { id: string; name: string } | null;
   orderId?: string | null;
 }
 
@@ -479,6 +484,12 @@ function NewAppointmentModal({
   const { can: canPlan } = usePlan();
   const { canSendMessages } = usePermissions();
   const { vertical, v } = useVertical();
+  const { data: teamForAssign = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["team-members"],
+    queryFn: () => fetchJSON("/api/team-members"),
+    enabled: isOpen,
+    staleTime: 60_000,
+  });
   const [form, setForm] = useState({
     customerId: "",
     priceListItemId: "",
@@ -486,6 +497,7 @@ function NewAppointmentModal({
     date: defaultDate,
     startTime: defaultTime,
     notes: "",
+    assignedToUserId: "",
   });
   const [recurring, setRecurring] = useState(false);
   const [repeatEvery, setRepeatEvery] = useState<"week" | "2weeks" | "month">("week");
@@ -545,7 +557,7 @@ function NewAppointmentModal({
     : addMinutes(form.startTime, 60);
 
   const mutation = useMutation({
-    mutationFn: (data: typeof form & { endTime: string; trainingProgramId?: string }) => {
+    mutationFn: (data: Omit<typeof form, "assignedToUserId"> & { assignedToUserId: string | null; endTime: string; trainingProgramId?: string }) => {
       if (recurring) {
         return fetch("/api/appointments/recurring", {
           method: "POST",
@@ -593,6 +605,7 @@ function NewAppointmentModal({
         date: defaultDate,
         startTime: defaultTime,
         notes: "",
+        assignedToUserId: "",
       });
       setPickedCustomer(null);
     },
@@ -796,6 +809,22 @@ function NewAppointmentModal({
             </div>
           )}
 
+          {teamForAssign.length > 1 && (
+            <div>
+              <label className="label">עובד</label>
+              <select
+                className="input"
+                value={form.assignedToUserId}
+                onChange={(e) => setForm({ ...form, assignedToUserId: e.target.value })}
+              >
+                <option value="">ללא שיוך</option>
+                {teamForAssign.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="label">הערות</label>
             <textarea
@@ -856,6 +885,7 @@ function NewAppointmentModal({
             onClick={() =>
               mutation.mutate({
                 ...form,
+                assignedToUserId: form.assignedToUserId || null,
                 // Server requires a service, price-list item, OR notes to describe
                 // the appointment. For a service-less general appointment, fall
                 // back to a default note so booking still succeeds.
@@ -1237,7 +1267,8 @@ function CalendarContent() {
   const filteredAppointments = useMemo(
     () => appointments.filter((a) => {
       if (!activeCategories.has(resolveAppointmentCategory(a.service, a.priceListItem))) return false;
-      if (effectiveStaffFilter.length > 0 && a.staff?.id && !effectiveStaffFilter.includes(a.staff.id)) return false;
+      // Assigned member (the legacy `staff` column points at another user table and never matched).
+      if (effectiveStaffFilter.length > 0 && a.assignedTo?.id && !effectiveStaffFilter.includes(a.assignedTo.id)) return false;
       return true;
     }),
     [appointments, activeCategories, effectiveStaffFilter]
@@ -1246,6 +1277,50 @@ function CalendarContent() {
 
   // Staff list sourced from team-members API
   const staffList = teamMembers;
+
+  // Availability blocks: whole-business blocks + team members' absences (א.40 — they were saved but never drawn).
+  const { data: blocksRaw = [] } = useQuery<CalendarBlock[]>({
+    queryKey: ["calendar-blocks", from, to],
+    queryFn: () => fetchJSON(`/api/booking/blocks?from=${from}&to=${to}`),
+    enabled: viewMode !== "month",
+  });
+  const calendarBlocks = useMemo(
+    () => (Array.isArray(blocksRaw) ? blocksRaw : []).filter((b) =>
+      !(effectiveStaffFilter.length > 0 && b.userId && !effectiveStaffFilter.includes(b.userId))
+    ),
+    [blocksRaw, effectiveStaffFilter]
+  );
+  const renderBlockOverlay = (blk: CalendarBlock, day: string, style: React.CSSProperties) => {
+    const seg = blockSegmentForDay(blk, day, DAY_START, DAY_START + 13 * 60);
+    if (!seg) return null;
+    const { top, height } = appointmentStyle(seg.startTime, seg.endTime);
+    const label = blockLabel(blk);
+    return (
+      <div
+        key={`blk-${blk.id}-${day}`}
+        title={`${label}\n${seg.fullDay ? "כל היום" : `${seg.startTime}–${seg.endTime}`}`}
+        className={cn(
+          "absolute rounded-lg px-1.5 py-1 overflow-hidden border text-[11px]",
+          blk.userId ? "border-violet-300 text-violet-800" : "border-slate-300 text-slate-600"
+        )}
+        style={{
+          ...style,
+          top,
+          height: Math.max(height, 22),
+          zIndex: 4,
+          background: blk.userId
+            ? "repeating-linear-gradient(135deg, rgba(237,233,254,.9) 0 8px, rgba(221,214,254,.9) 8px 16px)"
+            : "repeating-linear-gradient(135deg, rgba(241,245,249,.92) 0 8px, rgba(226,232,240,.92) 8px 16px)",
+        }}
+      >
+        <div className="flex items-center gap-1 font-semibold truncate">
+          <Ban className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate">{label}</span>
+        </div>
+        {!seg.fullDay && <div className="opacity-80">{seg.startTime}–{seg.endTime}</div>}
+      </div>
+    );
+  };
 
   // Overdue helper
   const isOverdue = (dateStr: string) => new Date(dateStr) < new Date();
@@ -1469,6 +1544,25 @@ function CalendarContent() {
       toast.success("התור שוכפל באותו מועד ✓");
     },
     onError: () => toast.error("שגיאה בשכפול התור. נסה שוב."),
+  });
+
+  // Assign the appointment to a team member from the detail panel (א.41)
+  const assignMutation = useMutation({
+    mutationFn: ({ id, assignedToUserId }: { id: string; assignedToUserId: string | null }) =>
+      fetchJSON<AppointmentEvent>(`/api/appointments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignedToUserId }),
+      }),
+    onSuccess: (_res, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      if (selectedAppointment && selectedAppointment.id === vars.id) {
+        const member = teamMembers.find((m) => m.id === vars.assignedToUserId);
+        setSelectedAppointment({ ...selectedAppointment, assignedTo: member ? { id: member.id, name: member.name } : null });
+      }
+      toast.success(vars.assignedToUserId ? "התור שויך לעובד" : "השיוך הוסר");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בשיוך התור"),
   });
 
   const notesMutation = useMutation({
@@ -1764,8 +1858,8 @@ function CalendarContent() {
         )}
         <div className={cn("opacity-80", compact ? "truncate" : "line-clamp-1")}>{getAppointmentLabel(apt)}</div>
         <div className="opacity-80">{apt.startTime}</div>
-        {apt.staff && !compact && (
-          <div className="text-[10px] opacity-70 truncate">👤 {apt.staff.name}</div>
+        {apt.assignedTo && (
+          <div className={cn("opacity-80 truncate", compact ? "text-[10px]" : "text-[11px]")}>👤 {apt.assignedTo.name}</div>
         )}
         {/* Resize handle */}
         {!isCanceled && (
@@ -2307,6 +2401,16 @@ function CalendarContent() {
                   </div>
                 ))}
 
+                {/* Availability blocks / staff absences - week view */}
+                {weekDates.map((date, dayIdx) => {
+                  const dateStr = toLocalDateString(date);
+                  return calendarBlocks.map((blk) => renderBlockOverlay(blk, dateStr, {
+                    right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                    width: `calc((100% - 60px) / 7 - 4px)`,
+                    marginRight: 2,
+                  }));
+                })}
+
                 {/* Appointment blocks */}
                 {weekDates.map((date, dayIdx) => {
                   const dateStr = toLocalDateString(date);
@@ -2757,6 +2861,9 @@ function CalendarContent() {
                 />
               </div>
             ))}
+
+            {/* Availability blocks / staff absences - day view */}
+            {calendarBlocks.map((blk) => renderBlockOverlay(blk, toLocalDateString(selectedDay), { right: 60, width: "calc(100% - 64px)" }))}
 
             {/* Appointment blocks */}
             {(() => {
@@ -3515,6 +3622,27 @@ function CalendarContent() {
               <div className="text-petra-text font-medium">
                 {getAppointmentLabel(selectedAppointment)}
               </div>
+              {teamMembers.length > 1 ? (
+                <label className="flex items-center gap-2 text-petra-muted">
+                  <Users className="w-4 h-4 flex-shrink-0" />
+                  <select
+                    className="input text-sm py-1"
+                    value={selectedAppointment.assignedTo?.id ?? ""}
+                    disabled={assignMutation.isPending}
+                    onChange={(e) => assignMutation.mutate({ id: selectedAppointment.id, assignedToUserId: e.target.value || null })}
+                  >
+                    <option value="">ללא שיוך לעובד</option>
+                    {teamMembers.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : selectedAppointment.assignedTo ? (
+                <div className="flex items-center gap-2 text-petra-muted">
+                  <Users className="w-4 h-4" />
+                  {selectedAppointment.assignedTo.name}
+                </div>
+              ) : null}
               {/* Notes section with inline edit */}
               <div className="group/notes">
                 {editingNotes ? (

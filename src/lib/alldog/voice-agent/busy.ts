@@ -21,6 +21,7 @@ export async function loadSalesBusy(businessId: string, days: string[]): Promise
     prisma.availabilityBlock.findMany({
       where: {
         businessId,
+        userId: null, // a team member's absence is not a business-wide busy block
         startAt: { lt: range.end },
         endAt: { gt: range.start },
         OR: SALES_BLOCK_WORDS.map((w) => ({ reason: { contains: w } })),

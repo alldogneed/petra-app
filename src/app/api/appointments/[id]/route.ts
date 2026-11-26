@@ -29,6 +29,8 @@ const PatchAppointmentSchema = z.object({
   endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
   serviceId: z.string().uuid().optional(),
   priceListItemId: z.string().uuid().optional(),
+  // Team member (PlatformUser id) — validated as an active member of this business in the service; null clears.
+  assignedToUserId: z.string().max(64).nullable().optional(),
 });
 
 export async function PATCH(

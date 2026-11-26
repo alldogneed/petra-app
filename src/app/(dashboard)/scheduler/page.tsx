@@ -32,6 +32,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { CustomerPicker, fetchPickerCustomerById, type PickerCustomer } from "@/components/customers/CustomerPicker";
+import { AssignedMemberSelect } from "@/components/appointments/AssignedMemberSelect";
 
 /* ─────────────── Types ─────────────── */
 
@@ -208,6 +209,7 @@ function SchedulerContent() {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedPetId, setSelectedPetId] = useState("");
   const [notes, setNotes] = useState("");
+  const [assignedToUserId, setAssignedToUserId] = useState("");
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
     return { year: d.getFullYear(), month: d.getMonth() };
@@ -415,6 +417,7 @@ function SchedulerContent() {
               customerId: newCust.id,
               petId: selectedPetId || undefined,
               notes: notes || undefined,
+              assignedToUserId: assignedToUserId || null,
             });
           },
         }
@@ -430,6 +433,7 @@ function SchedulerContent() {
       customerId,
       petId: selectedPetId || (willAttach && attachProgram ? attachProgram.dogId : undefined),
       notes: notes || undefined,
+      assignedToUserId: assignedToUserId || null,
       ...(willAttach && attachProgram ? { trainingProgramId: attachProgram.id } : {}),
     });
   }
@@ -441,6 +445,7 @@ function SchedulerContent() {
     setSelectedCustomerId("");
     setSelectedPetId("");
     setNotes("");
+    setAssignedToUserId("");
     setBookingResult(null);
     setPickedCustomer(null);
     setAttachToProgram(null);
@@ -950,6 +955,12 @@ function SchedulerContent() {
               )}
             </div>
           )}
+
+          <AssignedMemberSelect
+            value={assignedToUserId}
+            onChange={setAssignedToUserId}
+            labelClassName="block text-sm font-medium text-gray-700 mb-1.5"
+          />
 
           {/* Notes */}
           <div>

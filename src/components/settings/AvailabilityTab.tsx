@@ -22,6 +22,8 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useRegisterDirty } from "./SettingsDirtyContext";
 import { SettingsFieldset, SettingsSaveBar } from "./settings-ui";
 import { usePermissions } from "@/hooks/usePermissions";
+import { BlockMemberSelect } from "@/components/availability/BlockMemberSelect";
+import { blockMemberName } from "@/lib/availability-block-range";
 
 /** Reads the server's Hebrew `error` (e.g. a 403 permission message) or falls back. */
 async function jsonOrThrow(r: Response, fallback: string) {
@@ -62,6 +64,8 @@ interface AvailabilityBlock {
   endAt: string;
   reason: string | null;
   createdAt: string;
+  userId?: string | null;
+  user?: { id: string; name: string | null } | null;
 }
 
 interface BookingSettings {
@@ -154,9 +158,10 @@ export default function AvailabilityTab() {
   const [blockStartDate, setBlockStartDate] = useState("");
   const [blockEndDate, setBlockEndDate] = useState("");
   const [blockReason, setBlockReason] = useState("");
+  const [blockUserId, setBlockUserId] = useState("");
 
   const addBlockMutation = useMutation({
-    mutationFn: (data: { startAt: string; endAt: string; reason?: string }) =>
+    mutationFn: (data: { startAt: string; endAt: string; reason?: string; userId?: string }) =>
       fetch("/api/booking/blocks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -167,6 +172,7 @@ export default function AvailabilityTab() {
       setBlockStartDate("");
       setBlockEndDate("");
       setBlockReason("");
+      setBlockUserId("");
     },
   });
 
@@ -190,6 +196,7 @@ export default function AvailabilityTab() {
       startAt: new Date(blockStartDate).toISOString(),
       endAt: new Date(blockEndDate).toISOString(),
       reason: blockReason || undefined,
+      userId: blockUserId || undefined,
     });
   }
 
@@ -623,6 +630,9 @@ export default function AvailabilityTab() {
               className="input"
             />
           </div>
+          <div className="mb-3 empty:hidden">
+            <BlockMemberSelect value={blockUserId} onChange={setBlockUserId} />
+          </div>
 
           {addBlockMutation.isError && (
             <div className="flex items-center gap-2 p-2 rounded-lg bg-red-50 text-red-700 text-xs mb-3">
@@ -659,6 +669,7 @@ export default function AvailabilityTab() {
             {blocks.map((block) => {
               const start = new Date(block.startAt);
               const end = new Date(block.endAt);
+              const memberName = blockMemberName(block);
               return (
                 <div key={block.id} className="card p-3 flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
@@ -673,6 +684,7 @@ export default function AvailabilityTab() {
                       {end.toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
                       {" "}
                       {end.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                      {memberName && <span className="text-petra-muted font-normal"> · {memberName}</span>}
                     </p>
                     {block.reason && (
                       <p className="text-xs text-petra-muted">{block.reason}</p>
@@ -684,7 +696,7 @@ export default function AvailabilityTab() {
                     onClick={() => setPendingDelete({
                       kind: "block",
                       id: block.id,
-                      label: `${start.toLocaleDateString("he-IL", { day: "numeric", month: "short" })} — ${end.toLocaleDateString("he-IL", { day: "numeric", month: "short" })}${block.reason ? ` (${block.reason})` : ""}`,
+                      label: `${start.toLocaleDateString("he-IL", { day: "numeric", month: "short" })} — ${end.toLocaleDateString("he-IL", { day: "numeric", month: "short" })}${memberName ? ` · ${memberName}` : ""}${block.reason ? ` (${block.reason})` : ""}`,
                     })}
                     disabled={deleteBlockMutation.isPending}
                     aria-label="מחק חסימה"
