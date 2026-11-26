@@ -15,6 +15,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface OrderLine {
   id: string;
@@ -251,6 +252,7 @@ export default function OrderDetailPage() {
   const [editDiscountType, setEditDiscountType] = useState("none");
   const [editDiscountValue, setEditDiscountValue] = useState("");
 
+  const { canWritePayments } = usePermissions();
   const { data: order, isLoading } = useQuery<Order>({
     queryKey: ["order", orderId],
     queryFn: () => fetch(`/api/orders/${orderId}`).then((r) => r.json()),
@@ -328,7 +330,16 @@ export default function OrderDetailPage() {
     onError: (err: Error) => toast.error(err.message || "שגיאה בביטול ההזמנה"),
   });
 
-  // Draft-only: replace lines + discount; totals recalculated server-side
+  // Items + discount can be edited on a draft, and on a confirmed order that has nothing paid or
+  // pending (נדב 26/11/2026: a discount on a confirmed order). The server re-checks: no paid /
+  // pending payment, no invoice document (updateOrder allowUnpaidLineEdit); the appointment and
+  // the customer messages are not touched.
+  const canEditLines = !!order && (
+    order.status === "draft" ||
+    (order.status === "confirmed" && canWritePayments && !(order.payments ?? []).some((p) => p.status === "paid" || p.status === "pending"))
+  );
+
+  // Draft (or unpaid confirmed): replace lines + discount; totals recalculated server-side
   const saveLinesMutation = useMutation({
     mutationFn: (payload: { lines: Array<{ name: string; unit: string; quantity: number; unitPrice: number; taxMode: string; priceListItemId: string | null }>; discountType: string; discountValue: number }) =>
       fetch(`/api/orders/${orderId}`, {
@@ -587,7 +598,7 @@ export default function OrderDetailPage() {
             פריטי הזמנה
             <span className="text-xs font-normal text-petra-muted bg-slate-100 px-1.5 py-0.5 rounded-md">{order.lines.length}</span>
           </h2>
-          {order.status === "draft" && !editingLines && (
+          {canEditLines && !editingLines && (
             <button
               className="btn-secondary text-xs py-1.5 px-3 gap-1.5"
               onClick={startEditLines}
