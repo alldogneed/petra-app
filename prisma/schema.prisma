@@ -65,6 +65,8 @@ model PlatformUser {
   pendingApprovalsResolved  PendingApproval[] @relation("PendingApprovalResolver")
   assignedOrders        Order[]          @relation("AssignedOrders")
   assignedBoardingStays BoardingStay[]   @relation("AssignedBoardingStays")
+  assignedAppointments  Appointment[]    @relation("AssignedAppointments")
+  availabilityBlocks    AvailabilityBlock[] @relation("UserAvailabilityBlocks")
 
   @@index([email])
   @@index([googleId])
@@ -557,7 +559,9 @@ model Appointment {
   priceListItemId String?
   customerId  String
   petId       String?
-  staffId     String?
+  staffId     String?   // legacy (→ old User model, unused by the UI)
+  // Team member the appointment is assigned to (PlatformUser, like BoardingStay / Order) — גבעת הכלבים 25/11/2026, א.41
+  assignedToUserId String?
   businessId  String
   gcalEventId String? // Google Calendar event ID (staff-created appointments)
   createdAt   DateTime @default(now())
@@ -568,6 +572,7 @@ model Appointment {
   customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   pet        Pet?      @relation(fields: [petId], references: [id])
   staff      User?     @relation("AssignedStaff", fields: [staffId], references: [id])
+  assignedTo PlatformUser? @relation("AssignedAppointments", fields: [assignedToUserId], references: [id], onDelete: SetNull)
   business   Business  @relation(fields: [businessId], references: [id])
   payments   Payment[]
   trainingSession TrainingProgramSession? // training-package meeting this appointment IS (rule #45)
@@ -576,6 +581,7 @@ model Appointment {
   @@index([businessId, status])
   @@index([businessId, serviceId, date])
   @@index([businessId, customerId])
+  @@index([assignedToUserId])
 }
 
 model BoardingStay {
@@ -1239,12 +1245,17 @@ model AvailabilityBlock {
   startAt    DateTime // exact datetime, stored in UTC
   endAt      DateTime // exact datetime, stored in UTC
   reason     String?
+  // null = the whole business (blocks online booking); set = one team member's absence
+  // (shown on the calendar, does NOT block online booking) — גבעת הכלבים 25/11/2026, א.40
+  userId     String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   business   Business @relation(fields: [businessId], references: [id])
+  user       PlatformUser? @relation("UserAvailabilityBlocks", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([businessId, startAt, endAt])
+  @@index([userId])
 }
 
 /// Daily break windows (lunch, prayer times, etc.) that block booking slots

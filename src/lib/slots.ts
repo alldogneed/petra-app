@@ -126,9 +126,11 @@ export async function getAvailableSlots(
     }),
     prisma.availabilityRule.findMany({ where: { businessId } }),
     // Blocks that could possibly touch our target day (fetch ± 1 day in UTC to be safe)
+    // Whole-business blocks only: a team member's absence (userId set) does not close online booking.
     prisma.availabilityBlock.findMany({
       where: {
         businessId,
+        userId: null,
         startAt: { lte: new Date(`${localDateStr}T23:59:59Z`) },
         endAt:   { gte: new Date(`${localDateStr}T00:00:00Z`) },
       },

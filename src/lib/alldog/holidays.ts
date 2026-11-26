@@ -6,7 +6,7 @@ import type { QuietBlock } from "@/lib/alldog/missed-call-rules";
 export async function holidayBlocks(businessId: string, now: Date): Promise<QuietBlock[]> {
   try {
     return await prisma.availabilityBlock.findMany({
-      where: { businessId, endAt: { gt: now }, startAt: { lt: new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000) }, reason: { contains: "חג" } },
+      where: { businessId, userId: null, endAt: { gt: now }, startAt: { lt: new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000) }, reason: { contains: "חג" } },
       select: { startAt: true, endAt: true, reason: true },
       take: 20,
     });
