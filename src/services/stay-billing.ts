@@ -22,7 +22,8 @@ export async function getStaysBilling(businessId: string, stayIds: string[]): Pr
     orderBy: { createdAt: "desc" },
     select: {
       id: true, total: true, status: true, relatedEntityId: true,
-      lines: { select: { name: true, quantity: true, unitPrice: true, lineTotal: true }, orderBy: { id: "asc" } },
+      // No orderBy on id (random uuid): rows come back in insertion order, so the stay line stays first.
+      lines: { select: { name: true, quantity: true, unitPrice: true, lineTotal: true } },
     },
   });
   const orderIds = orders.map((o) => o.id);
