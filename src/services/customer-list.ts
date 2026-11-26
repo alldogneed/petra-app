@@ -32,6 +32,8 @@ import {
   tagLikePattern,
   SEARCH_MAX_LEN,
   TAG_MAX_LEN,
+  ACTIVE_VISIT_DAYS,
+  NEW_CUSTOMER_DAYS,
   type CustomerFilters,
   type CustomerSort,
 } from "@/lib/customer-filters";
@@ -579,4 +581,43 @@ export async function listCustomers(
   });
   const cmap = new Map(fetched.map((c) => [c.id, c]));
   return { enhanced: false, customers: page.ids.map((id) => cmap.get(id)).filter(Boolean) };
+}
+
+/**
+ * Status of ONE customer — the same rule as the list (`isCustomerActive` + VIP tag) — for MCP
+ * get_client (גבעת הכלבים 25/11/2026, א.42). Status is computed, never stored: a reserved or
+ * checked-in stay, an upcoming appointment, a visit in the last 60 days, an active training
+ * program or a customer created in the last 7 days → "active".
+ */
+export async function getCustomerStatus(
+  businessId: string,
+  customerId: string,
+  db: DbClient
+): Promise<{ status: "vip" | "active" | "dormant"; reasons: string[] } | null> {
+  const now = new Date();
+  const todayStart = israelTodayStart(now);
+  const c = await db.customer.findFirst({ where: { id: customerId, businessId }, select: { id: true, createdAt: true, tags: true } });
+  if (!c) return null;
+  const [last, next, stay, training] = await Promise.all([
+    db.appointment.findFirst({
+      where: { businessId, customerId, status: { not: "canceled" }, OR: [{ date: { lt: todayStart } }, { status: "completed" }] },
+      orderBy: { date: "desc" },
+      select: { date: true },
+    }),
+    db.appointment.findFirst({
+      where: { businessId, customerId, status: "scheduled", date: { gte: todayStart } },
+      select: { id: true },
+    }),
+    db.boardingStay.findFirst({ where: { businessId, customerId, status: { in: ["reserved", "checked_in"] } }, select: { id: true } }),
+    db.trainingProgram.findFirst({ where: { businessId, customerId, status: "ACTIVE" }, select: { id: true } }),
+  ]);
+  const facts = { createdAt: c.createdAt, lastVisit: last?.date ?? null, hasUpcoming: !!next, inBoarding: !!stay, activeTraining: !!training };
+  const reasons: string[] = [];
+  if (stay) reasons.push("שהייה בפנסיון (שמורה או פעילה)");
+  if (next) reasons.push("תור עתידי");
+  if (training) reasons.push("תוכנית אילוף פעילה");
+  if (last && new Date(last.date).getTime() >= todayStart.getTime() - ACTIVE_VISIT_DAYS * 86_400_000) reasons.push(`ביקור ב-${ACTIVE_VISIT_DAYS} הימים האחרונים`);
+  if (new Date(c.createdAt).getTime() >= now.getTime() - NEW_CUSTOMER_DAYS * 86_400_000) reasons.push("לקוח חדש (השבוע האחרון)");
+  const active = isCustomerActive(facts, todayStart, now);
+  return { status: displayStatus(hasVipTag(parseTagList(c.tags)), active), reasons };
 }

@@ -9,6 +9,7 @@ import { cn, fetchJSON, formatCurrency } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
 import type { StayBilling } from "@/lib/stay-billing";
+import { StayAddonForm } from "@/components/boarding/StayBillingBlock";
 
 /** GET /api/customers/[id]/boarding — paidAmount is null without FINANCE_READ. */
 interface CustomerStay {
@@ -222,9 +223,32 @@ function StayBillingLine({
   const balance = billing.balance ?? 0;
   const canRecord = canPay && !!billing.orderId && balance > 0;
   return (
+    <StayBillingDetails
+      billing={billing}
+      balance={balance}
+      canRecord={canRecord}
+      canPay={canPay}
+      paying={paying}
+      onTogglePay={onTogglePay}
+      customerId={customerId}
+      stayId={stayId}
+      onPaid={onPaid}
+    />
+  );
+}
+
+function StayBillingDetails({
+  billing, balance, canRecord, canPay, paying, onTogglePay, customerId, stayId, onPaid,
+}: {
+  billing: StayBilling; balance: number; canRecord: boolean; canPay: boolean; paying: boolean;
+  onTogglePay: () => void; customerId: string; stayId: string; onPaid: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [addingAddon, setAddingAddon] = useState(false);
+  return (
     <div className="px-3 pb-2 -mt-1 ps-14">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
-        <span className="text-petra-muted">סה״כ {formatCurrency(billing.total)}</span>
+        <span className="text-petra-muted">סה״כ {formatCurrency(billing.total ?? 0)}</span>
         <span className="text-petra-muted">· שולם {formatCurrency(billing.paid)}</span>
         {balance > 0 ? (
           <span className="font-semibold text-red-600">· יתרה {formatCurrency(balance)}</span>
@@ -234,12 +258,31 @@ function StayBillingLine({
         {billing.pending > 0 && (
           <span className="text-amber-600">· ממתין {formatCurrency(billing.pending)}</span>
         )}
-        {canRecord && (
-          <button type="button" onClick={onTogglePay} className="btn-ghost text-xs py-0.5 px-2 ms-auto">
-            {paying ? "סגור" : "רשום תשלום"}
-          </button>
-        )}
+        <span className="ms-auto flex items-center gap-1">
+          {canPay && (
+            <button type="button" onClick={() => setAddingAddon((v) => !v)} className="btn-ghost text-xs py-0.5 px-2">
+              {addingAddon ? "סגור" : "הוסף תוספת"}
+            </button>
+          )}
+          {canRecord && (
+            <button type="button" onClick={onTogglePay} className="btn-ghost text-xs py-0.5 px-2">
+              {paying ? "סגור" : "רשום תשלום"}
+            </button>
+          )}
+        </span>
       </div>
+      {addingAddon && (
+        <div className="mt-2 rounded-xl border border-petra-border bg-slate-50 p-2">
+          <StayAddonForm
+            stayId={stayId}
+            onClose={() => setAddingAddon(false)}
+            onSaved={() => {
+              queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+              queryClient.invalidateQueries({ queryKey: ["orders"] });
+            }}
+          />
+        </div>
+      )}
       {canRecord && paying && billing.orderId && (
         <StayPaymentForm
           customerId={customerId}
