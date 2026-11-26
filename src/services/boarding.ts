@@ -169,6 +169,9 @@ const PET_SELECT_FULL = {
 // Boarding stays
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Checked-out stays the boarding screen loads without a range (timeline + history). */
+export const CHECKED_OUT_WINDOW_DAYS = 180;
+
 export async function listBoardingStays(businessId: string, db: DbClient, opts: ListBoardingOptions = {}) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { businessId };
@@ -195,10 +198,14 @@ export async function listBoardingStays(businessId: string, db: DbClient, opts: 
     return db.boardingStay.findMany({ where, include, orderBy: { checkIn: "desc" }, take: 500 });
   }
 
-  // No range (the boarding screen): EVERY active stay + the latest history rows.
-  // One "latest 200 of anything" query hid current dogs once a business had many
-  // canceled stays (גבעת הכלבים: 546 canceled → the 7 checked-in dogs fell off).
-  const [active, history] = await Promise.all([
+  // No range (the boarding screen): EVERY active stay + recently checked-out stays + the
+  // latest other history rows. One "latest 200 of anything" query hid current dogs once a
+  // business had many canceled stays (גבעת הכלבים: 546 canceled → the 7 checked-in dogs fell
+  // off). Checked-out stays get their own window: with 590 canceled rows a long stay that
+  // started in October and checked out today ranked ~#230 by check-in and vanished from the
+  // timeline the moment it was marked "יצא" (גבעת הכלבים 26/11/2026).
+  const checkedOutSince = new Date(Date.now() - CHECKED_OUT_WINDOW_DAYS * 86_400_000);
+  const [active, checkedOut, otherHistory] = await Promise.all([
     db.boardingStay.findMany({
       where: { ...where, status: { in: ["reserved", "checked_in"] } },
       include,
@@ -206,13 +213,23 @@ export async function listBoardingStays(businessId: string, db: DbClient, opts: 
       take: 1000,
     }),
     db.boardingStay.findMany({
-      where: { ...where, status: { notIn: ["reserved", "checked_in"] } },
+      where: {
+        ...where,
+        status: "checked_out",
+        OR: [{ checkOut: { gte: checkedOutSince } }, { checkOut: null, checkIn: { gte: checkedOutSince } }],
+      },
+      include,
+      orderBy: { checkIn: "desc" },
+      take: 1500,
+    }),
+    db.boardingStay.findMany({
+      where: { ...where, status: { notIn: ["reserved", "checked_in", "checked_out"] } },
       include,
       orderBy: { checkIn: "desc" },
       take: 150,
     }),
   ]);
-  return [...active, ...history].sort((a, b) => b.checkIn.getTime() - a.checkIn.getTime());
+  return [...active, ...checkedOut, ...otherHistory].sort((a, b) => b.checkIn.getTime() - a.checkIn.getTime());
 }
 
 export interface ListBoardingStaysPageOptions extends ListBoardingOptions {
