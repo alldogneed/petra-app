@@ -55,6 +55,8 @@ import {
   ClipboardList,
   Printer,
   GripVertical,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
@@ -62,6 +64,7 @@ import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 import { usePermissions } from "@/hooks/usePermissions";
+import { StayBillingBlock } from "@/components/boarding/StayBillingBlock";
 import { staysOverlap, staysShareNight, israelDayKey } from "@/lib/boarding-overlap";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -740,6 +743,7 @@ function TimelineView({
   search = "",
   onOpenStay,
   canDrag = false,
+  fullHeight = false,
 }: {
   rooms: Room[];
   stays: BoardingStay[];
@@ -752,6 +756,8 @@ function TimelineView({
   onOpenStay?: (stay: BoardingStay) => void;
   /** Bars can be dragged to another room / other dates (BOARDING_MANAGE). */
   canDrag?: boolean;
+  /** Full-screen mode: the grid uses the whole viewport height. */
+  fullHeight?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [boxWidth, setBoxWidth] = useState(0);
@@ -1358,7 +1364,8 @@ function TimelineView({
         onScroll={handleScroll}
         onPointerDown={handleScrollerPointerDown}
         className={cn(
-          "overflow-auto max-h-[75vh] overscroll-contain",
+          "overflow-auto overscroll-contain",
+          fullHeight ? "max-h-[calc(100dvh-7.5rem)]" : "max-h-[75vh]",
           drag || panning ? "cursor-grabbing select-none" : "cursor-grab",
         )}
         dir="ltr"
@@ -1392,7 +1399,7 @@ function TimelineView({
                     style={{ backgroundColor: statusColor }}
                   />
                   <span className={cn("font-medium text-petra-text truncate", compact ? "text-[10px]" : "text-xs")}>{room.name}</span>
-                  {room.registrationOnly && (
+                  {room.registrationOnly && !narrow && (
                     <span className={cn("text-slate-500 whitespace-nowrap", compact ? "text-[8px]" : "text-[9px]")} title="רישום בלבד — לא נספר בתפוסה">רישום</span>
                   )}
                   <span className={cn("text-petra-muted ms-auto", compact ? "text-[8px]" : "text-[9px]")}>{room._count.boardingStays}/{room.capacity}</span>
@@ -2102,6 +2109,15 @@ function CheckoutDialog({
             </div>
           </div>
 
+          {stay.customer && (
+            <StayBillingBlock
+              stay={stay}
+              nights={nights}
+              defaultPricePerNight={pricePerNight}
+              unitLabel={calcMode === "nights" ? "לילות" : "ימים"}
+            />
+          )}
+
           {isLate && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -2206,6 +2222,14 @@ function CheckoutDialog({
 // ─── Edit Stay Dialog ────────────────────────────────────────────────────────
 
 /** Reached by clicking a dog inside a room: edit the stay's dates, room and notes. */
+/** Opening a card from the booking dialog navigates in the same window (an installed app opened a
+ * new window per click — גבעת הכלבים 22/11/2026); the boarding page reads this back and returns to
+ * the timeline at the same day. */
+const BOARDING_RETURN_KEY = "petra.boarding.return";
+function rememberTimelineReturn(day: string) {
+  try { sessionStorage.setItem(BOARDING_RETURN_KEY, JSON.stringify({ day, at: Date.now() })); } catch { /* storage unavailable */ }
+}
+
 function EditStayDialog({
   stay,
   rooms,
@@ -2214,9 +2238,20 @@ function EditStayDialog({
   isPending,
   onConfirmTentative,
   isConfirming = false,
+  stays = [],
+  onCheckin,
+  onCheckout,
+  defaultPricePerNight = 0,
 }: {
   stay: BoardingStay;
   rooms: Room[];
+  /** Business default nightly price — the billing block starts from the room's price, else this. */
+  defaultPricePerNight?: number;
+  /** All loaded stays — used to mark rooms that are full on the chosen dates. */
+  stays?: BoardingStay[];
+  /** Opens the regular check-in / check-out dialog for this stay. */
+  onCheckin?: () => void;
+  onCheckout?: () => void;
   onSave: (data: { checkIn: string; checkOut: string | null; roomId: string | null; notes: string; isTentative?: boolean }) => void;
   onCancel: () => void;
   isPending: boolean;
@@ -2246,6 +2281,21 @@ function EditStayDialog({
 
   const invalidRange = !!checkOut && new Date(checkOut) <= new Date(checkIn);
   const nights = checkOut && !invalidRange ? calcNights(checkIn, checkOut) : 0;
+
+  // Rooms that are full for the chosen dates (same rule as the server: shared nights, this stay excluded).
+  const fullRoomIds = useMemo(() => {
+    const full = new Set<string>();
+    if (!checkIn || invalidRange) return full;
+    const range = { checkIn: new Date(checkIn).toISOString(), checkOut: checkOut ? new Date(checkOut).toISOString() : null };
+    for (const room of rooms) {
+      const taken = stays.filter(
+        (s) => s.id !== stay.id && s.room?.id === room.id && ACTIVE_STATUSES.includes(s.status) && staysShareNight(s, range)
+      ).length;
+      if (taken >= room.capacity) full.add(room.id);
+    }
+    return full;
+  }, [checkIn, checkOut, invalidRange, rooms, stays, stay.id]);
+  const chosenRoomFull = !!roomId && roomId !== (stay.room?.id ?? "") && fullRoomIds.has(roomId);
 
   return (
     <div className="modal-overlay">
@@ -2285,8 +2335,7 @@ function EditStayDialog({
           {stay.customer && (
             <Link
               href={`/customers/${stay.customer.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              onClick={() => rememberTimelineReturn(israelDayKey(stay.checkIn))}
               className="flex items-center justify-center gap-1.5 min-w-0 px-2 py-2 rounded-lg border border-brand-200 bg-brand-50 text-xs sm:text-sm font-medium text-brand-700 hover:bg-brand-100 transition-colors"
             >
               <Users className="w-4 h-4 flex-shrink-0" />
@@ -2295,14 +2344,29 @@ function EditStayDialog({
           )}
           <Link
             href={petHref}
-            target="_blank"
-            rel="noopener noreferrer"
+            onClick={() => rememberTimelineReturn(israelDayKey(stay.checkIn))}
             className="flex items-center justify-center gap-1.5 min-w-0 px-2 py-2 rounded-lg border border-brand-200 bg-brand-50 text-xs sm:text-sm font-medium text-brand-700 hover:bg-brand-100 transition-colors"
           >
             <PawPrint className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">פתח כרטיס כלב</span>
           </Link>
         </div>
+
+        {((stay.status === "reserved" && onCheckin) || (stay.status === "checked_in" && onCheckout)) && (
+          <div className="mb-4">
+            {stay.status === "reserved" ? (
+              <button type="button" className="btn-secondary w-full justify-center text-sm" onClick={onCheckin}>
+                <LogIn className="w-4 h-4" />
+                צ׳ק-אין
+              </button>
+            ) : (
+              <button type="button" className="btn-secondary w-full justify-center text-sm" onClick={onCheckout}>
+                <LogOut className="w-4 h-4" />
+                צ׳ק-אאוט
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -2327,10 +2391,21 @@ function EditStayDialog({
             <label className="label text-xs">חדר</label>
             <select className="input w-full text-sm" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
               <option value="">ללא חדר</option>
-              {rooms.filter((r) => r.isActive).map((r) => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
+              {rooms.filter((r) => r.isActive).map((r) => {
+                const full = fullRoomIds.has(r.id) && r.id !== (stay.room?.id ?? "");
+                return (
+                  <option key={r.id} value={r.id} disabled={full}>
+                    {r.name}{r.registrationOnly ? " · רישום בלבד" : ""}{full ? " — מלא בתאריכים" : ""}
+                  </option>
+                );
+              })}
             </select>
+            {fullRoomIds.size > 0 && (
+              <p className="text-[11px] text-petra-muted mt-1">חדרים מלאים בתאריכים שנבחרו מסומנים ולא ניתנים לבחירה</p>
+            )}
+            {chosenRoomFull && (
+              <p className="text-xs text-red-600 mt-1">החדר מלא בתאריכים האלה — בחרו חדר אחר</p>
+            )}
           </div>
 
           <div>
@@ -2353,15 +2428,19 @@ function EditStayDialog({
             </label>
           )}
 
-          <p className="text-xs text-petra-muted">
-            המחיר וההנחה נקבעים במסך הצ׳ק-אאוט, לפני שליחת דרישת התשלום.
-          </p>
+          {stay.customer && (
+            <StayBillingBlock
+              stay={stay}
+              nights={stay.checkOut ? calcNights(stay.checkIn, stay.checkOut) : 0}
+              defaultPricePerNight={rooms.find((r) => r.id === stay.room?.id)?.pricePerNight ?? defaultPricePerNight}
+            />
+          )}
         </div>
 
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
-            disabled={isPending || invalidRange || !checkIn}
+            disabled={isPending || invalidRange || !checkIn || chosenRoomFull}
             onClick={() =>
               onSave({
                 checkIn: new Date(checkIn).toISOString(),
@@ -2804,11 +2883,11 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 function BoardingPageContent() {
-  const { canExportData, canManageBoarding } = usePermissions();
+  const { canExportData, canManageBoarding, canWritePayments } = usePermissions();
   const [showNewStay, setShowNewStay] = useState(false);
   const [careLogStay, setCareLogStay] = useState<{ id: string; petName: string } | null>(null);
   const [form, setForm] = useState({
-    customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0, assignedToUserId: "",
+    customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0, createOrder: true, assignedToUserId: "",
     // Retroactive stays (dog already in the pension before the business joined Petra):
     // "" = let the server decide (reserved), or an explicit status for backdated dates.
     status: "" as "" | "reserved" | "checked_in" | "checked_out",
@@ -2847,6 +2926,28 @@ function BoardingPageContent() {
   const [timelineCompact, setTimelineCompact] = useState(false);
   useEffect(() => {
     try { setTimelineCompact(window.localStorage.getItem(TL_COMPACT_STORAGE_KEY) === "1"); } catch { /* storage blocked */ }
+  }, []);
+  // Full-screen timeline (גבעת הכלבים 22/11/2026): a fixed layer over the page, Esc closes it.
+  const [timelineFull, setTimelineFull] = useState(false);
+  useEffect(() => {
+    if (!timelineFull) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !document.querySelector(".modal-overlay")) setTimelineFull(false); };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [timelineFull]);
+  // Back from a customer / dog card opened in the booking dialog → the timeline at the same day.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(BOARDING_RETURN_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(BOARDING_RETURN_KEY);
+      const { day, at } = JSON.parse(raw) as { day?: string; at?: number };
+      if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !at || Date.now() - at > 2 * 60 * 60 * 1000) return;
+      setViewMode("timeline");
+      setTimelineJump((j) => ({ day, n: j.n + 1 }));
+    } catch { /* storage unavailable */ }
   }, []);
   const toggleTimelineCompact = () => {
     setTimelineCompact((v) => {
@@ -2993,13 +3094,47 @@ function BoardingPageContent() {
           }),
         }).then(async (r) => { if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Failed"); } return r.json(); })
       );
-      return Promise.all(promises);
+      const created = (await Promise.all(promises)) as { id: string; checkIn: string; checkOut: string | null; petId: string }[];
+      // One payment order per stay, linked to it (round 2, דור 23/11/2026). The stays already
+      // exist — a failed order is reported but does not undo them.
+      let orderFailed = false;
+      const nights = checkOutDT ? calcNights(checkInDT, checkOutDT) : 0;
+      if (data.createOrder && canWritePayments && data.customerId && !serviceDogMode && nights > 0 && data.pricePerNight > 0) {
+        for (const stay of created) {
+          const petName = selectedCustomer?.pets.find((p) => p.id === stay.petId)?.name ?? "";
+          try {
+            const r = await fetch("/api/orders", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                customerId: data.customerId,
+                orderType: "boarding",
+                status: "confirmed",
+                petId: stay.petId,
+                startAt: stay.checkIn,
+                endAt: stay.checkOut,
+                relatedEntityType: "BoardingStay",
+                relatedEntityId: stay.id,
+                suppressPaymentRequest: true,
+                lines: [{ name: `פנסיון${petName ? ` — ${petName}` : ""}`, unit: "לילה", quantity: nights, unitPrice: data.pricePerNight }],
+              }),
+            });
+            if (!r.ok) orderFailed = true;
+          } catch {
+            orderFailed = true;
+          }
+        }
+      }
+      return { created, orderFailed, withOrder: data.createOrder && nights > 0 && data.pricePerNight > 0 && canWritePayments };
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["boarding-billing"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      if (res?.orderFailed) toast.error("השהייה נוצרה, אבל יצירת ההזמנה הכספית נכשלה — אפשר ליצור אותה מחלון השהייה");
       setShowNewStay(false);
-      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, assignedToUserId: "", status: "", isTentative: false });
+      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, createOrder: true, assignedToUserId: "", status: "", isTentative: false });
       setPickedCustomer(null);
       setServiceDogMode(false);
       toast.success("ההשמה נוצרה בהצלחה");
@@ -3867,6 +4002,15 @@ function BoardingPageContent() {
               >
                 תצוגה מצומצמת
               </button>
+              <button
+                type="button"
+                onClick={() => setTimelineFull(true)}
+                className="px-2 py-1 rounded-md font-medium border bg-white text-petra-muted border-slate-200 hover:text-petra-text inline-flex items-center gap-1"
+                title="הצגת ציר הזמן על כל המסך"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+                מסך מלא
+              </button>
             </div>
           )}
           {viewMode === "grid" && (
@@ -4031,7 +4175,42 @@ function BoardingPageContent() {
             </div>
           ) : (
             <>
-              <TimelineView rooms={rooms} stays={stays} search={searchNorm} onOpenStay={setEditStay} canDrag={canManageBoarding} scrollTo={timelineJump} compact={timelineCompact} />
+              {timelineFull ? (
+                <div className="fixed inset-0 z-[49] bg-slate-50 flex flex-col p-2 sm:p-3 pb-20 md:pb-3" dir="rtl" data-no-pull-refresh>
+                  <div className="flex items-center gap-2 mb-2 flex-wrap text-xs">
+                    <h2 className="text-sm font-bold text-petra-text me-auto">ציר זמן — פנסיון</h2>
+                    <button
+                      type="button"
+                      onClick={() => setTimelineJump((j) => ({ day: localDayKey(new Date()), n: j.n + 1 }))}
+                      className="px-2 py-1 rounded-md font-medium border bg-white text-petra-muted border-slate-200 hover:text-petra-text"
+                    >
+                      היום
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleTimelineCompact}
+                      aria-pressed={timelineCompact}
+                      className={cn(
+                        "px-2 py-1 rounded-md font-medium border",
+                        timelineCompact ? "bg-slate-800 text-white border-slate-800" : "bg-white text-petra-muted border-slate-200 hover:text-petra-text"
+                      )}
+                    >
+                      תצוגה מצומצמת
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTimelineFull(false)}
+                      className="px-2 py-1 rounded-md font-medium border bg-white text-petra-text border-slate-300 hover:bg-slate-100 inline-flex items-center gap-1"
+                    >
+                      <Minimize2 className="w-3.5 h-3.5" />
+                      סגור מסך מלא
+                    </button>
+                  </div>
+                  <TimelineView rooms={rooms} stays={stays} search={searchNorm} onOpenStay={setEditStay} canDrag={canManageBoarding} scrollTo={timelineJump} compact={timelineCompact} fullHeight />
+                </div>
+              ) : (
+                <TimelineView rooms={rooms} stays={stays} search={searchNorm} onOpenStay={setEditStay} canDrag={canManageBoarding} scrollTo={timelineJump} compact={timelineCompact} />
+              )}
               <div className="flex gap-3 mt-2 flex-wrap text-[10px] text-petra-muted">
                 <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#94A3B8" }} /> הזמנה</div>
                 <div className="flex items-center gap-1">
@@ -4850,6 +5029,17 @@ function BoardingPageContent() {
                     <span>סה״כ</span>
                     <span>₪{total.toLocaleString()}</span>
                   </div>
+                  {canWritePayments && !serviceDogMode && form.customerId && (
+                    <label className="flex items-center gap-2 pt-1.5 cursor-pointer text-sm text-petra-text">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-brand-500"
+                        checked={form.createOrder}
+                        onChange={(e) => setForm((f) => ({ ...f, createOrder: e.target.checked }))}
+                      />
+                      צור הזמנה כספית לשהייה{form.petIds.length > 1 ? " (הזמנה לכל כלב)" : ""}
+                    </label>
+                  )}
                 </div>
               );
             })()}
@@ -4904,6 +5094,10 @@ function BoardingPageContent() {
           isPending={editStayMutation.isPending}
           onConfirmTentative={() => confirmTentativeMutation.mutate(editStay.id)}
           isConfirming={confirmTentativeMutation.isPending}
+          stays={stays}
+          defaultPricePerNight={settings.boardingPricePerNight || 0}
+          onCheckin={() => { const s = editStay; setEditStay(null); setCheckinDialogStay(s); }}
+          onCheckout={() => { const s = editStay; setEditStay(null); setCheckoutDialogStay(s); }}
         />
       )}
 

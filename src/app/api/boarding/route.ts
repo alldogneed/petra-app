@@ -25,7 +25,9 @@ export async function GET(request: NextRequest) {
     if ((from && (!ymd.test(from) || isNaN(Date.parse(from)))) || (to && (!ymd.test(to) || isNaN(Date.parse(to))))) {
       return NextResponse.json({ error: "תאריך לא תקין" }, { status: 400 });
     }
-    const stays = await listBoardingStays(authResult.businessId, prisma, { from, to });
+    // ?status=all with a range = also checked-out / canceled stays (check-in/out board).
+    const status = searchParams.get("status") === "all" ? ("all" as const) : undefined;
+    const stays = await listBoardingStays(authResult.businessId, prisma, { from, to, status });
 
     return NextResponse.json(stays);
   } catch (error) {

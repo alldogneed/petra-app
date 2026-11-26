@@ -236,6 +236,9 @@ export function CreateOrderModal({
   const [boardingCheckInTime, setBoardingCheckInTime] = useState("12:00");
   const [boardingCheckOutDate, setBoardingCheckOutDate] = useState(tomorrowStr());
   const [boardingCheckOutTime, setBoardingCheckOutTime] = useState("12:00");
+  // Create the BoardingStay(s) together with the order (linked both ways) — default ON
+  const [createBoardingStays, setCreateBoardingStays] = useState(true);
+  const [boardingRoomId, setBoardingRoomId] = useState("");
 
   // WhatsApp link toggle
   const [includeLandingPage, setIncludeLandingPage] = useState(true);
@@ -329,6 +332,27 @@ export function CreateOrderModal({
     enabled: !!customerId && isOpen,
     staleTime: 60_000,
   });
+
+  // Boarding rooms for the optional room of the stays created with the order
+  const { data: boardingRooms = [] } = useQuery<{ id: string; name: string; capacity?: number | null }[]>({
+    queryKey: ["rooms"],
+    queryFn: () => fetch("/api/boarding/rooms").then((r) => (r.ok ? r.json() : [])),
+    enabled: isOpen && orderType === "boarding" && createBoardingStays,
+    staleTime: 60_000,
+  });
+
+  /** Best-effort cancel of stays created in a submit that did not complete. */
+  const cancelStays = async (ids: string[]) => {
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/boarding/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "canceled" }),
+        }).catch(() => undefined)
+      )
+    );
+  };
 
   const toggleBoardingPet = (id: string) => {
     setBoardingPetIds((prev) =>
@@ -508,6 +532,40 @@ export function CreateOrderModal({
   const mutation = useMutation({
     mutationFn: async (opts: { status: "draft" | "confirmed"; payNow?: { amount: number; method: string; cardLast4?: string; cardType?: string; checkNumber?: string; checkBank?: string; checkBranch?: string; checkDate?: string } }) => {
       const statusOverride = opts.status;
+
+      // 0. Boarding order + "צור גם שהייה בפנסיון" → create a BoardingStay per dog FIRST, so the
+      //    order can be linked to the stay (relatedEntityType "BoardingStay"). A stay that fails
+      //    (e.g. room full) stops the submit: no order, stays created here are cancelled.
+      const createdStayIds: string[] = [];
+      const shouldCreateStays = isBoardingOrder && createBoardingStays && boardingPetIds.length > 0;
+      if (shouldCreateStays) {
+        try {
+          for (const petId of boardingPetIds) {
+            const stayRes = await fetch("/api/boarding", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                customerId,
+                petId,
+                roomId: boardingRoomId || null,
+                checkIn: `${boardingCheckInDate}T${boardingCheckInTime}`,
+                checkOut: boardingCheckOutDate ? `${boardingCheckOutDate}T${boardingCheckOutTime}` : null,
+                notes: notes || null,
+              }),
+            });
+            const stayBody = await stayRes.json().catch(() => ({}));
+            if (!stayRes.ok || !stayBody?.id) {
+              throw new Error(stayBody?.error || "שגיאה ביצירת השהייה בפנסיון");
+            }
+            createdStayIds.push(stayBody.id as string);
+          }
+        } catch (stayErr) {
+          await cancelStays(createdStayIds);
+          throw stayErr;
+        }
+      }
+      const linkedStayId = createdStayIds[0] ?? null;
+
       // 1. Create the order (+ linked Appointment for service types, via API transaction)
       const res = await fetch("/api/orders", {
         method: "POST",
@@ -523,7 +581,8 @@ export function CreateOrderModal({
               petIds: l.petIds.length > 0 ? l.petIds : (selectedPetId ? [selectedPetId] : []),
             },
           })),
-          petId: selectedPetId || undefined,
+          petId: selectedPetId || (linkedStayId ? boardingPetIds[0] : undefined) || undefined,
+          ...(linkedStayId ? { relatedEntityType: "BoardingStay", relatedEntityId: linkedStayId } : {}),
           discountType,
           discountValue: parseFloat(discountValue) || 0,
           notes,
@@ -552,6 +611,7 @@ export function CreateOrderModal({
       });
 
       if (!res.ok) {
+        await cancelStays(createdStayIds);
         const body = await res.json().catch(() => ({ error: "שגיאה ביצירת ההזמנה" }));
         const orderErr = new Error(body.error || "שגיאה ביצירת ההזמנה");
         if (body.code) (orderErr as unknown as Record<string, unknown>).code = body.code;
@@ -560,25 +620,10 @@ export function CreateOrderModal({
 
       const order = await res.json();
 
-      // 2. If boarding order with pets selected → create a BoardingStay per pet
-      if (isBoardingOrder && boardingPetIds.length > 0) {
-        await Promise.all(
-          boardingPetIds.map((petId) =>
-            fetch("/api/boarding", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                customerId,
-                petId,
-                roomId: null, // starts unassigned
-                checkIn: `${boardingCheckInDate}T${boardingCheckInTime}:00`,
-                checkOut: boardingCheckOutDate ? `${boardingCheckOutDate}T${boardingCheckOutTime}:00` : null,
-                notes: notes || null,
-              }),
-            })
-          )
-        );
+      // 2. Stays were created before the order — refresh the boarding board.
+      if (createdStayIds.length > 0) {
         qc.invalidateQueries({ queryKey: ["boarding"] });
+        qc.invalidateQueries({ queryKey: ["rooms"] });
       }
 
       // 3. Invalidate appointments so the calendar updates
@@ -607,6 +652,7 @@ export function CreateOrderModal({
             status: "paid",
             customerId,
             orderId: order.id,
+            boardingStayId: linkedStayId || undefined,
             cardLast4: opts.payNow.cardLast4 || null,
             cardType: opts.payNow.cardType || null,
             checkNumber: opts.payNow.checkNumber || null,
@@ -653,6 +699,8 @@ export function CreateOrderModal({
     setBoardingCheckOutDate(tomorrowStr());
     setBoardingCheckOutTime(business?.boardingCheckOutTime ?? "12:00");
     setBoardingPetIds([]);
+    setCreateBoardingStays(true);
+    setBoardingRoomId("");
     setSelectedPetId("");
     setApptDate(todayStr());
     setApptStartTime("09:00");
@@ -855,6 +903,39 @@ export function CreateOrderModal({
             </div>
           )}
 
+          {/* Create the stay(s) together with the order — linked both ways */}
+          <div className="bg-white border border-brand-100 rounded-xl px-3 py-2 space-y-2">
+            <label className="flex items-center gap-2 text-sm text-petra-text cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-brand-500"
+                checked={createBoardingStays}
+                onChange={(e) => setCreateBoardingStays(e.target.checked)}
+              />
+              צור גם שהייה בפנסיון
+            </label>
+            {createBoardingStays && (
+              <div>
+                <label className="label text-xs text-petra-muted mb-1">חדר (אופציונלי)</label>
+                <select
+                  className="input text-sm"
+                  value={boardingRoomId}
+                  onChange={(e) => setBoardingRoomId(e.target.value)}
+                >
+                  <option value="">ללא חדר</option>
+                  {boardingRooms.map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-petra-muted mt-1">
+                  {boardingPetIds.length > 1
+                    ? `תיווצר שהייה לכל אחד מ־${boardingPetIds.length} הכלבים, וההזמנה תקושר לשהייה הראשונה`
+                    : "השהייה תיווצר ותקושר להזמנה"}
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Notice if has boarding lines in cart */}
           {hasBoardingLine && (
             <p className="text-[11px] text-brand-500 flex items-center gap-1">
@@ -975,9 +1056,9 @@ export function CreateOrderModal({
                   })}
                 </div>
               )}
-              {boardingPetIds.length > 0 && (
+              {boardingPetIds.length > 0 && createBoardingStays && (
                 <p className="text-[11px] text-brand-500 mt-1.5 flex items-center gap-1">
-                  ✓ {boardingPetIds.length === 1 ? "הכלב" : `${boardingPetIds.length} הכלבים`} יופיע{boardingPetIds.length > 1 ? "ו" : ""} אוטומטית בלוח הפנסיון תחת &quot;ממתין לשיבוץ&quot;
+                  ✓ {boardingPetIds.length === 1 ? "הכלב" : `${boardingPetIds.length} הכלבים`} יופיע{boardingPetIds.length > 1 ? "ו" : ""} בלוח הפנסיון{boardingRoomId ? "" : " תחת \"ממתין לשיבוץ\""}
                 </p>
               )}
             </div>
