@@ -158,7 +158,16 @@ export async function POST(request: NextRequest) {
   try {
     const firstStageId = await getFirstLeadStageId(businessId as string);
 
-    const lead = await prisma.lead.create({
+    // AllDog only: a form from a phone that already has an ACTIVE lead joins that lead (no second
+    // lead for the same person). Everything after this point runs for the joined lead too.
+    const { mergeFormIntoActiveLead } = await import("@/lib/alldog/form-lead-merge");
+    const joined = await mergeFormIntoActiveLead({
+      businessId: businessId as string, phone, name: name || null, email, source, city, service, notes, attribution,
+    });
+
+    const lead = joined
+      ? { id: joined.id, name: joined.name, stage: joined.stage, createdAt: new Date() }
+      : await prisma.lead.create({
       data: {
         businessId,
         name: name || phone || "ליד מהאתר",
@@ -176,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     // lead_followup automation (opt-in, gated inside; raw prisma path — not covered
     // by the createLead service hook). Awaited so Vercel doesn't kill the promise.
-    await scheduleLeadFollowup({
+    if (!joined) await scheduleLeadFollowup({
       id: lead.id,
       businessId: businessId as string,
       name: lead.name,
@@ -221,8 +230,8 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json(
-      { success: true, leadId: lead.id, name: lead.name, stage: lead.stage },
-      { status: 201 }
+      { success: true, leadId: lead.id, name: lead.name, stage: lead.stage, ...(joined ? { joinedExistingLead: true } : {}) },
+      { status: joined ? 200 : 201 }
     );
   } catch (error) {
     console.error("[webhook/lead] DB error:", error);
